@@ -6,6 +6,8 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _():
+    import io
+
     import altair as alt
     import marimo as mo
     import matplotlib.pyplot as plt
@@ -24,7 +26,25 @@ def _():
     from sklearn.model_selection import train_test_split
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
-    return mo, np, pd, px
+    return (
+        CalibrationDisplay,
+        ConfusionMatrixDisplay,
+        LogisticRegression,
+        PrecisionRecallDisplay,
+        RocCurveDisplay,
+        StandardScaler,
+        classification_report,
+        go,
+        io,
+        make_pipeline,
+        mo,
+        np,
+        pd,
+        plt,
+        px,
+        sns,
+        train_test_split,
+    )
 
 
 @app.cell
@@ -58,12 +78,10 @@ def _(mo):
     ]
 
     ALL_BATTING_STATS = []
-    for stat in BATTING_STATS:
-        # first base
-        ALL_BATTING_STATS.append(f"team_{stat}")
-        # then each period in order
-        for period in BATTING_PERIODS:
-            ALL_BATTING_STATS.append(f"team_{stat}_{period}")
+    for _stat in BATTING_STATS:
+        ALL_BATTING_STATS.append(f"team_{_stat}")
+        for _period in BATTING_PERIODS:
+            ALL_BATTING_STATS.append(f"team_{_stat}_{_period}")
 
     BATTING_STATS_DROPDOWN = mo.ui.dropdown(options=ALL_BATTING_STATS, value=ALL_BATTING_STATS[0], searchable=True)
     return ALL_BATTING_STATS, BATTING_PERIODS, BATTING_STATS
@@ -92,7 +110,19 @@ def _():
         'P_WHIP_5': "starting_pitcher_whip_5",
         'P_WHIP_20': "starting_pitcher_whip_20",
     }
-    return PITCHING_PERIODS, PITCHING_STATS
+
+    ALL_PITCHING_STATS = []
+    for _stat in PITCHING_STATS:
+        ALL_PITCHING_STATS.append(f"{_stat}")
+        for _period in PITCHING_PERIODS:
+            ALL_PITCHING_STATS.append(f"{_stat}_{_period}")
+    return (
+        ALL_PITCHING_STATS,
+        MERGED_PITCHING_STATS,
+        PITCHING_PERIODS,
+        PITCHING_STATS,
+        PITCHING_STAT_MAPPER,
+    )
 
 
 @app.cell
@@ -106,7 +136,7 @@ def _(RETROSHEET_DIR, pd):
                   for code, city, nickname in zip(TEAMS.index, TEAMS['CITY'], TEAMS['NICKNAME'])}
 
     TEAMS_LIST_REVERSED = {v: k for k, v in TEAMS_LIST.items()}
-    return TEAMS, TEAMS_LIST_REVERSED
+    return TEAMS, TEAMS_LIST, TEAMS_LIST_REVERSED
 
 
 @app.cell
@@ -127,7 +157,7 @@ def _(RETROSHEET_DIR, pd):
     def get_player_name(player_id):
         row = PLAYERS_DF.loc[player_id][["NICKNAME", "LAST"]]
         return f"{row['NICKNAME']} {row['LAST']}"
-    return
+    return PLAYERS_DF, get_player_name
 
 
 @app.cell
@@ -457,7 +487,7 @@ def _(ALL_SEASONS_DF, BATTING_PERIODS, BATTING_STATS, TEAMS, TEAM_DATA):
 
     MERGED_DF = merge_team_rolled_stats(ALL_SEASONS_DF, TEAM_DATA)
     MERGED_DF.reset_index(inplace=True)
-    return
+    return (MERGED_DF,)
 
 
 @app.cell
@@ -510,6 +540,527 @@ def _(PITCHING_DF, PITCHING_PERIODS, PITCHING_STATS):
                 .transform(lambda s: s.shift(1).rolling(window=_period, min_periods=1).mean())
             )
         
+    return
+
+
+@app.cell
+def _(ALL_PITCHING_STATS, END_YEAR, PITCHING_DF, PLAYERS_DF, START_YEAR, mo):
+    _pitchers = PLAYERS_DF.loc[PITCHING_DF['person.key'].unique()].copy()
+    _pitchers['NAME'] = _pitchers['NICKNAME'] + " " + _pitchers['LAST'] + " (" + _pitchers.index + ")"
+
+    PITCHERS_LIST = _pitchers['NAME'].to_dict()
+    PITCHERS_LIST_REVERSED = {v: k for k, v in PITCHERS_LIST.items()}
+
+    pitchers_multiselect = mo.ui.multiselect(options=PITCHERS_LIST_REVERSED, max_selections=5)
+    pitching_stats_dropdown = mo.ui.dropdown(options=ALL_PITCHING_STATS, value=ALL_PITCHING_STATS[0], searchable=True)
+
+    start_season_dropdown = mo.ui.dropdown(options=range(START_YEAR, END_YEAR), value=END_YEAR - 1)
+    end_season_dropdown = mo.ui.dropdown(options=range(START_YEAR, END_YEAR), value=END_YEAR - 1)
+    return (
+        PITCHERS_LIST,
+        end_season_dropdown,
+        pitchers_multiselect,
+        pitching_stats_dropdown,
+        start_season_dropdown,
+    )
+
+
+@app.cell
+def _(
+    PITCHING_DF,
+    end_season_dropdown,
+    get_player_name,
+    mo,
+    pitchers_multiselect,
+    pitching_stats_dropdown,
+    px,
+    start_season_dropdown,
+):
+    _data = PITCHING_DF[PITCHING_DF['person.key'].isin(pitchers_multiselect.value)]
+    _data = _data[(_data['season'] >= start_season_dropdown.value) & (_data['season'] <= end_season_dropdown.value)]
+
+    _data['player_name'] = _data['person.key'].map(get_player_name)
+
+    _fig = px.line(
+        _data,
+        x='game.datetime',
+        y=pitching_stats_dropdown.value,
+        color='player_name',
+        markers=False,
+        title=f"{pitching_stats_dropdown.value} ({start_season_dropdown.value} - {end_season_dropdown.value})"
+    )
+
+    mo.vstack([
+        mo.hstack([
+            pitchers_multiselect,
+            pitching_stats_dropdown,
+            start_season_dropdown,
+            end_season_dropdown,
+        ], justify='start'),
+        mo.ui.plotly(_fig)
+    ])
+    return
+
+
+@app.cell
+def _(
+    PITCHING_DF,
+    end_season_dropdown,
+    get_player_name,
+    mo,
+    pitching_stats_dropdown,
+    px,
+    start_season_dropdown,
+    teams_dropdown,
+):
+    _data = PITCHING_DF[PITCHING_DF['team.key'] == teams_dropdown.value]
+    _data = _data[(_data['season'] >= start_season_dropdown.value) & (_data['season'] <= end_season_dropdown.value)]
+
+    _data['player_name'] = _data['person.key'].map(get_player_name)
+
+    _fig = px.line(
+        _data,
+        x='game.datetime',
+        y=pitching_stats_dropdown.value,
+        color='player_name',
+        markers=False,
+        title=f"{pitching_stats_dropdown.value} ({start_season_dropdown.value} - {end_season_dropdown.value})"
+    )
+
+    mo.vstack([
+        mo.hstack([
+            teams_dropdown,
+            pitching_stats_dropdown,
+            start_season_dropdown,
+            end_season_dropdown,
+        ], justify='start'),
+        mo.ui.plotly(_fig)
+    ])
+    return
+
+
+@app.cell
+def _(MERGED_DF):
+    MERGED_DF_WITH_PITCHING = MERGED_DF.reset_index().rename(columns={'index': 'original_game_index'}).copy()
+    return (MERGED_DF_WITH_PITCHING,)
+
+
+@app.cell
+def _(PITCHING_DF, PITCHING_STAT_MAPPER):
+    # Prepare the pitcher stats lookup table (the "right" side of the merge)
+    # We select and rename columns for the merge and sort by time, which is required.
+    _stats_to_get = list(PITCHING_STAT_MAPPER.keys())
+    pitcher_lookup = PITCHING_DF[['person.key', 'game.datetime'] + _stats_to_get].rename(columns={
+        'person.key': 'pitcher_id',
+        'game.datetime': 'datetime'
+    }).sort_values('datetime')
+    return (pitcher_lookup,)
+
+
+@app.cell
+def _(MERGED_DF_WITH_PITCHING, pd):
+    # Reshape g_df from "wide" to "long" format so we can process all pitchers in one call
+    home_pitchers = MERGED_DF_WITH_PITCHING[[
+        'original_game_index',
+        'datetime',
+        'home_starting_pitcher_id'
+    ]].rename(
+        columns={'home_starting_pitcher_id': 'pitcher_id'}
+    )
+    home_pitchers['role'] = 'home'
+
+    visiting_pitchers = MERGED_DF_WITH_PITCHING[[
+        'original_game_index',
+        'datetime',
+        'visiting_starting_pitcher_id'
+    ]].rename(
+        columns={'visiting_starting_pitcher_id': 'pitcher_id'}
+    )
+    visiting_pitchers['role'] = 'visiting'
+
+    # Combine and sort by time, as required by merge_asof
+    merged_df_long = pd.concat([home_pitchers, visiting_pitchers]).sort_values('datetime')
+    return (merged_df_long,)
+
+
+@app.cell
+def _(merged_df_long, pd, pitcher_lookup):
+    merged_long = pd.merge_asof(
+        merged_df_long,
+        pitcher_lookup,
+        on='datetime',
+        by='pitcher_id',
+        direction='backward'  # This finds the last value <= the key
+    )
+    return (merged_long,)
+
+
+@app.cell
+def _(PITCHING_STAT_MAPPER, merged_long):
+    _stats_to_get = list(PITCHING_STAT_MAPPER.keys())
+
+    # Pivot the merged stats back to the original format with home/visiting columns
+    pivoted_stats = merged_long.pivot_table(
+        index='original_game_index',
+        columns='role',
+        values=_stats_to_get
+    )
+
+    # Flatten the multi-level column index created by the pivot
+    pivoted_stats.columns = [f"{role}_{PITCHING_STAT_MAPPER[stat]}" for stat, role in pivoted_stats.columns]
+    return (pivoted_stats,)
+
+
+@app.cell
+def _(MERGED_DF_WITH_PITCHING, pivoted_stats):
+    MERGED_DF_WITH_PITCHING_FINAL = MERGED_DF_WITH_PITCHING.set_index('original_game_index').join(pivoted_stats)
+    return (MERGED_DF_WITH_PITCHING_FINAL,)
+
+
+@app.cell
+def _(
+    BATTING_PERIODS,
+    BATTING_STATS,
+    MERGED_DF_WITH_PITCHING_FINAL,
+    MERGED_PITCHING_STATS,
+    PITCHING_PERIODS,
+):
+    _training_df = MERGED_DF_WITH_PITCHING_FINAL.copy()
+
+    TRAINING_FIELDS = [
+        'home_win',
+        *[f"{ha}_{stat}_{period}" for ha in ['home', 'visiting'] for stat in BATTING_STATS for period in BATTING_PERIODS],
+        *[f"{ha}_starting_pitcher_{stat}_{period}" for ha in ['home', 'visiting'] for stat in MERGED_PITCHING_STATS for
+          period in PITCHING_PERIODS]
+    ]
+
+    TRAINER_DF = _training_df[TRAINING_FIELDS].dropna()
+
+    x = TRAINER_DF.drop('home_win', axis=1)
+    y = TRAINER_DF['home_win']
+    return TRAINER_DF, TRAINING_FIELDS, x, y
+
+
+@app.cell
+def _(train_test_split, x, y):
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3)
+    return x_test, x_train, y_test, y_train
+
+
+@app.cell
+def _(LogisticRegression, StandardScaler, make_pipeline):
+    PIPELINE = make_pipeline(
+        StandardScaler(),
+        LogisticRegression(
+            solver='saga',
+            penalty='l2',
+            max_iter=5000,
+        )
+    )
+
+    LOGMODEL = PIPELINE.named_steps['logisticregression']
+    return LOGMODEL, PIPELINE
+
+
+@app.cell
+def _(PIPELINE, x_train, y_train):
+    PIPELINE.fit(x_train, y_train)
+    return
+
+
+@app.cell
+def _(PIPELINE, x_test):
+    predictions = PIPELINE.predict(x_test)
+    return (predictions,)
+
+
+@app.cell
+def _(classification_report, predictions, y_test):
+    print(classification_report(y_test, predictions))
+    return
+
+
+@app.cell
+def _(ConfusionMatrixDisplay, PIPELINE, io, mo, plt, x_test, y_test):
+    _fig, _ax = plt.subplots()
+    ConfusionMatrixDisplay.from_estimator(PIPELINE, x_test, y_test, ax=_ax)
+
+    _buffer = io.BytesIO()
+    _fig.savefig(_buffer, format='png')
+    _buffer.seek(0)
+
+    mo.image(_buffer)
+    return
+
+
+@app.cell
+def _(PIPELINE, RocCurveDisplay, io, mo, plt, x_test, y_test):
+    _fig, _ax = plt.subplots()
+    RocCurveDisplay.from_estimator(PIPELINE, x_test, y_test, ax=_ax)
+
+    _buffer = io.BytesIO()
+    _fig.savefig(_buffer, format='png')
+    _buffer.seek(0)
+
+    mo.image(_buffer)
+    return
+
+
+@app.cell
+def _(PIPELINE, PrecisionRecallDisplay, io, mo, plt, x_test, y_test):
+    _fig, _ax = plt.subplots()
+    PrecisionRecallDisplay.from_estimator(PIPELINE, x_test, y_test, ax=_ax)
+
+    _buffer = io.BytesIO()
+    _fig.savefig(_buffer, format='png')
+    _buffer.seek(0)
+
+    mo.image(_buffer)
+    return
+
+
+@app.cell
+def _(CalibrationDisplay, PIPELINE, io, mo, plt, x_test, y_test):
+    _fig, _ax = plt.subplots()
+    CalibrationDisplay.from_estimator(PIPELINE, x_test, y_test, ax=_ax)
+
+    _buffer = io.BytesIO()
+    _fig.savefig(_buffer, format='png')
+    _buffer.seek(0)
+
+    mo.image(_buffer)
+    return
+
+
+@app.cell
+def _(PIPELINE, plt, x_test):
+    y_proba = PIPELINE.predict_proba(x_test)[:, 1]
+    plt.hist(y_proba, bins=20)
+    plt.xlabel('Predicted Probability for Class 1')
+    plt.ylabel('Frequency')
+    plt.title('Histogram of Predicted Probabilities')
+    return
+
+
+@app.cell
+def _(LOGMODEL, pd, plt, x_train):
+    coefficients = pd.Series(LOGMODEL.coef_[0], index=x_train.columns)
+    coefficients.abs().sort_values(ascending=False).plot(kind='barh', figsize=(10, 8), title='Feature Impact')
+    plt.xlabel("Absolute Coefficient Value (Impact)")
+    plt.gca().invert_yaxis()
+    plt.tight_layout()
+    plt.show()
+    return
+
+
+@app.cell
+def _(TRAINER_DF, TRAINING_FIELDS, plt):
+    correlations = TRAINER_DF[TRAINING_FIELDS].corr()
+
+    # Drop the target row (self-correlation), then sort by correlation with the target
+    target = 'home_win'
+    correlations_target = correlations[target].drop(target).sort_values()
+
+    # Plot
+    correlations_target.plot(kind='barh', figsize=(10, 8), title='Correlation with Target: home_win')
+    plt.xlabel("Correlation")
+    plt.tight_layout()
+    plt.show()
+    return
+
+
+@app.cell
+def _(TRAINER_DF, sns):
+    sns.heatmap(TRAINER_DF.corr(), cmap='coolwarm', annot=True)
+    return
+
+
+@app.cell
+def _(MERGED_DF_WITH_PITCHING_FINAL, plt, sns):
+    _training_df = MERGED_DF_WITH_PITCHING_FINAL.copy()
+
+    sns.countplot(x='home_win', data=_training_df)
+    plt.title('Class Distribution: home_win')
+    plt.xlabel('Home Win (1 = win, 0 = loss)')
+    plt.ylabel('Count')
+    plt.tight_layout()
+    plt.show()
+    return
+
+
+@app.cell
+def _(PITCHING_DF):
+    last_season_pitching_data = PITCHING_DF[
+        (PITCHING_DF['season'] == 2024)
+    ].copy()
+
+    ## Get the pitchers that have thrown more than 10 innings
+    def get_pitchers(pitcher_data, players_df, team_code):
+        pitchers = pitcher_data[
+            pitcher_data['team.key'] == team_code
+            ][['person.key', 'P_IP']].groupby('person.key').sum().query('P_IP > 10')
+
+        return players_df[players_df.index.isin(pitchers.index)]
+    return (last_season_pitching_data,)
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""# Predictions""")
+    return
+
+
+@app.cell
+def _(TEAM_DATA):
+    def get_last_team_stats(team_id):
+        return TEAM_DATA[team_id].iloc[-1]
+    return (get_last_team_stats,)
+
+
+@app.cell
+def _(last_season_pitching_data):
+    def get_last_pitching_stats(pitcher_id):
+        return last_season_pitching_data[last_season_pitching_data['person.key'] \
+                                         == pitcher_id].groupby('person.key').last().iloc[-1]
+    return (get_last_pitching_stats,)
+
+
+@app.cell
+def _(BATTING_PERIODS, BATTING_STATS, PITCHING_STAT_MAPPER, pd):
+    def create_game_series(home_team_stats, home_pitcher_stats, away_team_stats, away_pitcher_stats):
+        ## Batting
+        batting_fields = [f"team_{s}_{batting_period}" for s in BATTING_STATS for batting_period in BATTING_PERIODS]
+
+        home_batting = home_team_stats[batting_fields].rename(
+            lambda f: f.replace('team_', 'home_') if f.startswith('team_') else f)
+        away_batting = away_team_stats[batting_fields].rename(
+            lambda f: f.replace('team_', 'visiting_') if f.startswith('team_') else f)
+
+        batting = pd.concat([home_batting, away_batting], axis=0)
+
+        ## Pitching
+        home_pitching = home_pitcher_stats[PITCHING_STAT_MAPPER.keys()].rename(lambda z: f"home_{PITCHING_STAT_MAPPER[z]}")
+        away_pitching = away_pitcher_stats[PITCHING_STAT_MAPPER.keys()].rename(lambda z: f"visiting_{PITCHING_STAT_MAPPER[z]}")
+
+        pitching = pd.concat([home_pitching, away_pitching], axis=0)
+
+        return pd.concat([batting, pitching])
+    return (create_game_series,)
+
+
+@app.cell
+def _(create_game_series, get_last_pitching_stats, get_last_team_stats, pd):
+    def predict_game(model, home_team, home_pitcher_id, visiting_team, visiting_pitcher_id):
+        home_team_stats = get_last_team_stats(home_team)
+        home_pitcher_stats = get_last_pitching_stats(home_pitcher_id)
+
+        away_team_stats = get_last_team_stats(visiting_team)
+        away_pitcher_stats = get_last_pitching_stats(visiting_pitcher_id)
+
+        game = create_game_series(home_team_stats, home_pitcher_stats, away_team_stats, away_pitcher_stats)
+
+        game_df = pd.DataFrame([game])
+        probs = model.predict_proba(game_df)
+
+        return probs[0][1], probs[0][0]
+    return (predict_game,)
+
+
+@app.cell
+def _(TEAMS_LIST_REVERSED, mo):
+    prediction_home_team_dropdown = mo.ui.dropdown(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[0], searchable=True)
+
+    prediction_away_team_dropdown = mo.ui.dropdown(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[1], searchable=True)
+    return prediction_away_team_dropdown, prediction_home_team_dropdown
+
+
+@app.cell
+def _(
+    PITCHERS_LIST,
+    PITCHING_DF,
+    mo,
+    prediction_away_team_dropdown,
+    prediction_home_team_dropdown,
+):
+    _home_pitchers = PITCHING_DF[(PITCHING_DF['team.key'] == prediction_home_team_dropdown.value) & (PITCHING_DF['season'] == 2024)]['person.key'].to_list()
+    home_pitchers_list = {k: PITCHERS_LIST[k] for k in _home_pitchers if k in PITCHERS_LIST}
+    home_pitchers_list_reversed = {v: k for k, v in home_pitchers_list.items()}
+
+    prediction_home_pitcher_dropdown = mo.ui.dropdown(options=home_pitchers_list_reversed, value=list(home_pitchers_list_reversed.keys())[1], searchable=True)
+
+    _away_pitchers = PITCHING_DF[(PITCHING_DF['team.key'] == prediction_away_team_dropdown.value) & (PITCHING_DF['season'] == 2024)]['person.key'].to_list()
+    away_pitchers_list = {k: PITCHERS_LIST[k] for k in _away_pitchers if k in PITCHERS_LIST}
+    away_pitchers_list_reversed = {v: k for k, v in away_pitchers_list.items()}
+
+    prediction_away_pitcher_dropdown = mo.ui.dropdown(options=away_pitchers_list_reversed, value=list(away_pitchers_list_reversed.keys())[1], searchable=True)
+    return prediction_away_pitcher_dropdown, prediction_home_pitcher_dropdown
+
+
+@app.cell
+def _(
+    PIPELINE,
+    TEAMS_LIST,
+    go,
+    mo,
+    predict_game,
+    prediction_away_pitcher_dropdown,
+    prediction_away_team_dropdown,
+    prediction_home_pitcher_dropdown,
+    prediction_home_team_dropdown,
+):
+    _home_team_win, _away_team_win = predict_game(
+        PIPELINE, 
+        prediction_home_team_dropdown.value, 
+        prediction_home_pitcher_dropdown.value, 
+        prediction_away_team_dropdown.value, 
+        prediction_away_pitcher_dropdown.value, 
+    )
+
+    _fig = go.Figure([
+        go.Scatter(
+            x=[0, 100],
+            y=[0, 0],
+            mode='lines',
+            line=dict(width=10, color='lightgrey'),
+            showlegend=False
+        ),
+
+        go.Scatter(
+            x=[_home_team_win * 100],
+            y=[0],
+            mode='markers',
+            marker=dict(size=12, color='red'),
+            name=f"{TEAMS_LIST[prediction_home_team_dropdown.value]} {_home_team_win * 100:.2f}%"),
+        go.Scatter(
+            x=[_away_team_win * 100],
+            y=[0],
+            mode='markers',
+            marker=dict(size=12, color='blue'),
+            name=f"{TEAMS_LIST[prediction_away_team_dropdown.value]} {_away_team_win * 100:.2f}%"),
+    ])
+
+    _fig.update_layout(
+        xaxis_range=[0, 100],
+        xaxis_title='Prediction Confidence (%)',
+        yaxis_visible=False,
+        title='Win Probability',
+        height=300
+    )
+
+    mo.vstack([
+        mo.hstack([
+            mo.vstack([
+                prediction_home_team_dropdown,     
+                prediction_home_pitcher_dropdown
+            ]),
+            mo.vstack([
+                prediction_away_team_dropdown,
+                prediction_away_pitcher_dropdown
+            ]),
+        ], justify="start"),
+        mo.ui.plotly(_fig)
+    ])
+
     return
 
 
