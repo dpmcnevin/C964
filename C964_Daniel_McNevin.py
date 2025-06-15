@@ -1,7 +1,10 @@
 import marimo
 
 __generated_with = "0.13.15"
-app = marimo.App(width="medium")
+app = marimo.App(
+    width="medium",
+    layout_file="layouts/C964_Daniel_McNevin.grid.json",
+)
 
 
 @app.cell(hide_code=True)
@@ -54,6 +57,7 @@ def _():
     import plotly.express as px
     import plotly.graph_objects as go
     import seaborn as sns
+    import tabulate
     from IPython.display import display, clear_output
     from sklearn.calibration import CalibrationDisplay
     from sklearn.linear_model import LogisticRegression
@@ -1287,8 +1291,6 @@ def _(mo):
 
 @app.cell
 def _(classification_report, mo, pd, predictions, y_test):
-    import tabulate
-
     _report_df = pd.DataFrame(classification_report(y_test, predictions, output_dict=True)).transpose()
     mo.md(_report_df.to_markdown())
     return
@@ -1406,12 +1408,15 @@ def _(mo):
 
 @app.cell
 def _(LOGMODEL, pd, plt, x_train):
-    coefficients = pd.Series(LOGMODEL.coef_[0], index=x_train.columns)
-    coefficients.abs().sort_values(ascending=False).plot(kind='barh', figsize=(10, 8), title='Feature Impact')
-    plt.xlabel("Absolute Coefficient Value (Impact)")
-    plt.gca().invert_yaxis()
-    plt.tight_layout()
-    plt.show()
+    _coefficients = pd.Series(LOGMODEL.coef_[0], index=x_train.columns)
+
+    _fig, _ax = plt.subplots(figsize=(10, 8))
+    _coefficients.abs().sort_values(ascending=False).plot(kind='barh', ax=_ax, title='Feature Impact')
+    _ax.set_xlabel("Absolute Coefficient Value (Impact)")
+    _ax.invert_yaxis()
+    _fig.tight_layout()
+
+    _fig
     return
 
 
@@ -1423,17 +1428,17 @@ def _(mo):
 
 @app.cell
 def _(TRAINER_DF, TRAINING_FIELDS, plt):
-    correlations = TRAINER_DF[TRAINING_FIELDS].corr()
+    _correlations = TRAINER_DF[TRAINING_FIELDS].corr()
 
-    # Drop the target row (self-correlation), then sort by correlation with the target
-    target = 'home_win'
-    correlations_target = correlations[target].drop(target).sort_values()
+    _target = 'home_win'
+    _correlations_target = _correlations[_target].drop(_target).sort_values()
 
-    # Plot
-    correlations_target.plot(kind='barh', figsize=(10, 8), title='Correlation with Target: home_win')
-    plt.xlabel("Correlation")
-    plt.tight_layout()
-    plt.show()
+    _fig, _ax = plt.subplots(figsize=(10, 8))
+    _correlations_target.plot(kind='barh', ax=_ax, title='Correlation with Target: home_win')
+    _ax.set_xlabel("Correlation")
+    _fig.tight_layout()
+
+    _fig 
     return
 
 
@@ -1459,12 +1464,14 @@ def _(mo):
 def _(MERGED_DF_WITH_PITCHING_FINAL, plt, sns):
     _training_df = MERGED_DF_WITH_PITCHING_FINAL.copy()
 
-    sns.countplot(x='home_win', data=_training_df)
-    plt.title('Class Distribution: home_win')
-    plt.xlabel('Home Win (1 = win, 0 = loss)')
-    plt.ylabel('Count')
-    plt.tight_layout()
-    plt.show()
+    _fig, _ax = plt.subplots()
+    sns.countplot(x='home_win', data=_training_df, ax=_ax)
+    _ax.set_title('Class Distribution: home_win')
+    _ax.set_xlabel('Home Win (1 = win, 0 = loss)')
+    _ax.set_ylabel('Count')
+    _fig.tight_layout()
+
+    _fig
     return
 
 
