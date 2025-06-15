@@ -1290,20 +1290,8 @@ def _(mo):
 
 
 @app.cell
-def _(classification_report, pd, predictions, y_test):
-    pd.DataFrame(classification_report(y_test, predictions, output_dict=True)).transpose()
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(
-        r"""
-    #### Confusion Matrix
-
-    This shows similar data to the classifiaction report in a graphical format
-    """
-    )
+def _(MODEL_METRICS, classification_report, pd, predictions, y_test):
+    MODEL_METRICS["Classification"] = pd.DataFrame(classification_report(y_test, predictions, output_dict=True)).transpose()
     return
 
 
@@ -1336,19 +1324,11 @@ def _(MODEL_METRICS, confusion_matrix, mo, predictions, y_test):
         yaxis_title='Actual'
     )
 
-    MODEL_METRICS["Confusion"] = mo.ui.plotly(_fig)
-    return
 
-
-@app.cell
-def _(mo):
-    mo.md(
-        r"""
-    #### ROC Curve
-
-    We are looking for a higher Area Under the Curve (AUC) score that shows that the model is good at distinguishing wins and losses
-    """
-    )
+    MODEL_METRICS["Confusion"] = mo.vstack([
+        mo.ui.plotly(_fig),
+        mo.md(r"""This shows similar data to the classifiaction report in a graphical format"""),
+    ])
     return
 
 
@@ -1379,18 +1359,16 @@ def _(MODEL_METRICS, PIPELINE, go, mo, x_test, y_test):
     ))
 
     _fig.update_layout(
-        title='ROC Curve',
+        title="ROC Curve",
         xaxis_title='False Positive Rate',
         yaxis_title='True Positive Rate'
     )
 
-    MODEL_METRICS["ROC"] = mo.ui.plotly(_fig)
-    return
+    MODEL_METRICS["ROC"] = mo.vstack([
+        mo.ui.plotly(_fig),
+        mo.md(r"""We are looking for a higher Area Under the Curve (AUC) score that shows that the model is good at distinguishing wins and losses"""),
 
-
-@app.cell
-def _(mo):
-    mo.md(r"""#### Precision Recall Graph""")
+    ])
     return
 
 
@@ -1408,13 +1386,9 @@ def _(MODEL_METRICS, PIPELINE, go, mo, x_test, y_test):
 
     _fig.update_layout(title='Precision-Recall Curve', xaxis_title='Recall', yaxis_title='Precision')
 
-    MODEL_METRICS["Recall"] = mo.ui.plotly(_fig)
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""#### Calibration Display""")
+    MODEL_METRICS["Recall"] = mo.vstack([
+        mo.ui.plotly(_fig)
+    ])
     return
 
 
@@ -1432,13 +1406,9 @@ def _(MODEL_METRICS, PIPELINE, go, mo, x_test, y_test):
 
     _fig.update_layout(title='Calibration Curve', xaxis_title='Mean PredictedProbability', yaxis_title='Fraction of Positives')
 
-    MODEL_METRICS["Calibration"] = mo.ui.plotly(_fig)
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""#### Histogram of Predicted Probabilities""")
+    MODEL_METRICS["Calibration"] = mo.vstack([
+        mo.ui.plotly(_fig)
+    ])
     return
 
 
@@ -1456,13 +1426,9 @@ def _(MODEL_METRICS, PIPELINE, go, mo, x_test):
         yaxis_title='Frequency'
     )
 
-    MODEL_METRICS["Predictions"] = mo.ui.plotly(_fig)
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""#### Which Features Had the Biggest Impact to the Predictions""")
+    MODEL_METRICS["Predictions"] = mo.vstack([
+        mo.ui.plotly(_fig)
+    ])
     return
 
 
@@ -1485,13 +1451,9 @@ def _(LOGMODEL, MODEL_METRICS, go, mo, pd, x_train):
         margin=dict(l=120, r=40, t=50, b=50)
     )
 
-    MODEL_METRICS["Feature Impact"] = mo.ui.plotly(_fig)
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""#### How the Features Correlated to a Win or Loss""")
+    MODEL_METRICS["Feature Impact"] = mo.vstack([
+        mo.ui.plotly(_fig)
+    ])
     return
 
 
@@ -1515,13 +1477,9 @@ def _(MODEL_METRICS, TRAINER_DF, TRAINING_FIELDS, go, mo):
         margin=dict(l=140, r=40, t=50, b=50)
     )
 
-    MODEL_METRICS["Feature Correlation"] = mo.ui.plotly(_fig)
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""#### Correlation Heatmap""")
+    MODEL_METRICS["Feature Correlation"] = mo.vstack([
+        mo.ui.plotly(_fig)
+    ])
     return
 
 
@@ -1543,13 +1501,9 @@ def _(MODEL_METRICS, TRAINER_DF, mo, px):
         coloraxis_colorbar=dict(title='Correlation')
     )
 
-    MODEL_METRICS["Heatmap"] = mo.ui.plotly(_fig)
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""#### How Often a Win or Loss is Predicted""")
+    MODEL_METRICS["Heatmap"] = mo.vstack([
+        mo.ui.plotly(_fig)
+    ])
     return
 
 
@@ -1573,7 +1527,15 @@ def _(MERGED_DF_WITH_PITCHING_FINAL, MODEL_METRICS, go, mo):
         bargap=0.2
     )
 
-    MODEL_METRICS["Prediction Class"] = mo.ui.plotly(_fig)
+    MODEL_METRICS["Prediction Class"] = mo.vstack([
+        mo.ui.plotly(_fig)
+    ])
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""### Model Tabs""")
     return
 
 
