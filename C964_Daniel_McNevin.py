@@ -224,6 +224,20 @@ def _():
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### Team Import
+
+    Get a list of all teams that are all active in 2024
+
+    This will set a `TEAMS` global variable that has a DataFrame of all teams
+    """
+    )
+    return
+
+
+@app.cell
 def _(RETROSHEET_DIR, pd):
     TEAMS_DF = pd.read_csv(f"{RETROSHEET_DIR}/reference/teams.csv.zip")
 
@@ -238,12 +252,30 @@ def _(RETROSHEET_DIR, pd):
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### Team Helper Methods
+
+    Methods to get the team and team name from the `TEAMS` DataFrame
+    """
+    )
+    return
+
+
+@app.cell
 def _(TEAMS):
     def get_team(team_code):
         return TEAMS.loc[TEAMS.index == team_code]
 
     def get_team_name(team_code):
         return get_team(team_code).apply(lambda tt: f"{tt['CITY']} {tt['NICKNAME']}", axis=1).iloc[0]
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""### Player Lookup Methods""")
     return
 
 
@@ -256,6 +288,18 @@ def _(RETROSHEET_DIR, pd):
         row = PLAYERS_DF.loc[player_id][["NICKNAME", "LAST"]]
         return f"{row['NICKNAME']} {row['LAST']}"
     return PLAYERS_DF, get_player_name
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### Game Log Information
+
+    Read data from each season. Range end is exclusive, so it will read up to, but not including `END_YEAR`
+    """
+    )
+    return
 
 
 @app.cell
@@ -275,6 +319,12 @@ def _(END_YEAR, RETROSHEET_DIR, START_YEAR, pd):
 
     ALL_SEASONS_DF = read_all_seasons(START_YEAR, END_YEAR)
     return (ALL_SEASONS_DF,)
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""### Header Columns""")
+    return
 
 
 @app.cell
@@ -338,6 +388,62 @@ def _():
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### Drop columns that we don't need
+
+    Out model doesn't currently include any information about position players, so remove it from the DataFrame
+    """
+    )
+    return
+
+
+@app.cell
+def _(ALL_SEASONS_DF):
+    ALL_SEASONS_DF.drop([
+        'visiting_1_id', 'visiting_1_name', 'visiting_1_pos',
+        'visiting_2_id', 'visiting_2_name', 'visiting_2_pos',
+        'visiting_3_id', 'visiting_3_name', 'visiting_3_pos',
+        'visiting_4_id', 'visiting_4_name', 'visiting_4_pos',
+        'visiting_5_id', 'visiting_5_name', 'visiting_5_pos',
+        'visiting_6_id', 'visiting_6_name', 'visiting_6_pos',
+        'visiting_7_id', 'visiting_7_name', 'visiting_7_pos',
+        'visiting_8_id', 'visiting_8_name', 'visiting_8_pos',
+        'visiting_9_id', 'visiting_9_name', 'visiting_9_pos',
+        'home_1_id', 'home_1_name', 'home_1_pos',
+        'home_2_id', 'home_2_name', 'home_2_pos',
+        'home_3_id', 'home_3_name', 'home_3_pos',
+        'home_4_id', 'home_4_name', 'home_4_pos',
+        'home_5_id', 'home_5_name', 'home_5_pos',
+        'home_6_id', 'home_6_name', 'home_6_pos',
+        'home_7_id', 'home_7_name', 'home_7_pos',
+        'home_8_id', 'home_8_name', 'home_8_pos',
+        'home_9_id', 'home_9_name', 'home_9_pos',
+        'misc', 'acquisition_info'
+    ], axis=1, inplace=True)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### Add Columns and Fields to DataFrame
+
+    * Add the column headers to the DataFrame
+    * Add `datetime` as a parsed version of the games' `date` for easier compairision and graphing
+    * Add a `game_id` for a consistent way to reference a game, includes:
+        * `date` - The game date
+        * `game_num` - Used for doubleheader games
+        * `home_team` - The home team
+        * `visiting_team` - The visiting team
+    """
+    )
+    return
+
+
+@app.cell
 def _(ALL_SEASONS_DF, GAMELOG_COLUMNS, pd):
     ## Add Columns to dataframe
     ALL_SEASONS_DF.columns = [*GAMELOG_COLUMNS, *['season']]
@@ -351,6 +457,24 @@ def _(ALL_SEASONS_DF, GAMELOG_COLUMNS, pd):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""## Data Exploration and Cleaning""")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### Check for ties
+
+    There are exceptional situations where a game can end in a tie. These games can be safely removed if they don't make up a large percentage of the total games
+    """
+    )
+    return
+
+
+@app.cell
 def _(ALL_SEASONS_DF):
     ties = ALL_SEASONS_DF[ALL_SEASONS_DF['home_score'] == ALL_SEASONS_DF['visiting_score']]
     (ties.shape[0] / ALL_SEASONS_DF.shape[0]) * 100
@@ -358,9 +482,21 @@ def _(ALL_SEASONS_DF):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""### Remove ties""")
+    return
+
+
+@app.cell
 def _(ALL_SEASONS_DF):
     indexes_to_drop = ALL_SEASONS_DF.index[ALL_SEASONS_DF['home_score'] == ALL_SEASONS_DF['visiting_score']]
     ALL_SEASONS_DF.drop(indexes_to_drop, inplace=True)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""### Set the binary value of a win or loss based on the score""")
     return
 
 
@@ -454,6 +590,22 @@ def _(ALL_SEASONS_DF):
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ## Per-Team Statistics
+
+    Create a dataframe per-team that includes all the games for that team. This will make functions later like rolling averages much easier.
+
+    We normalize the selected team for each stat with the `team_` prefix (ie. `team_ba`) regardless of whether it is a home or away game. The opponent similarly is normalized with the `opponent_` prefix
+
+    * `is_home_game` is added to the DataFrame
+    """
+    )
+    return
+
+
+@app.cell
 def _(pd):
     def team_games(team_games_dataframe, team_code):
         team_games_dataframe = team_games_dataframe.copy()
@@ -485,6 +637,12 @@ def _(pd):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""### Extract the team data for each team""")
+    return
+
+
+@app.cell
 def _(ALL_SEASONS_DF, TEAMS, team_games):
     def extract_team_dictionary(dataframe):
         all_teams = {}
@@ -499,6 +657,20 @@ def _(ALL_SEASONS_DF, TEAMS, team_games):
 
     TEAM_DATA = extract_team_dictionary(ALL_SEASONS_DF)
     return (TEAM_DATA,)
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### Calculate the Rolling Average
+
+    Add rolling averages for each selected batting stat over a period of 5, 20, 100, and 162 games
+
+    The rolling averages are all calculate for all values prior to th current column, since using the current game would be determinisitic
+    """
+    )
+    return
 
 
 @app.cell
@@ -524,6 +696,18 @@ def _(BATTING_PERIODS, BATTING_STATS, TEAMS, TEAM_DATA, pd):
     print("Processing Team: ", end="")
     for team in TEAMS.index:
         TEAM_DATA[team] = calculate_team_batting_rolling_averages(team, TEAM_DATA[team])
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### Per-Team Data Exploration
+
+    Explore some of the stats that have been calculated
+    """
+    )
     return
 
 
@@ -562,6 +746,12 @@ def _(TEAMS_LIST_REVERSED, mo):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""### Plot the Rolling Average of a Batting Statistic by Team""")
+    return
+
+
+@app.cell
 def _(TEAM_DATA_DF, batting_stats_dropdown, mo, px, teams_multi_dropdown):
     _fig = px.line(
         TEAM_DATA_DF[TEAM_DATA_DF['team_team'].isin(teams_multi_dropdown.value)],
@@ -578,6 +768,18 @@ def _(TEAM_DATA_DF, batting_stats_dropdown, mo, px, teams_multi_dropdown):
         ], justify='start'),
         mo.ui.plotly(_fig)
     ])
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ## Add the Aggregated Data Back Into the Game Logs
+
+    Merge the batting rolling averages in to a new DataFrame that has the original game data plus the rolling averages for the home and away team going into that game
+    """
+    )
     return
 
 
@@ -621,6 +823,20 @@ def _(ALL_SEASONS_DF, BATTING_PERIODS, BATTING_STATS, TEAMS, TEAM_DATA):
     MERGED_DF = merge_team_rolled_stats(ALL_SEASONS_DF, TEAM_DATA)
     MERGED_DF.reset_index(inplace=True)
     return (MERGED_DF,)
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ## Pitching Statistics
+
+    Pitching statistics are stored in a separte daily event file
+
+    We will create a DataFrame for all pitchers' events
+    """
+    )
+    return
 
 
 @app.cell
@@ -686,6 +902,18 @@ def _(PITCHING_DF):
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### Calculate Pitching Rolling Averages
+
+    Add rolling averages for pitching stats for the previous 5 and 20 games. Since these are individual stats, they can be shorter timeframes to represent short and longer term performance
+    """
+    )
+    return
+
+
+@app.cell
 def _(PITCHING_DF, PITCHING_PERIODS, PITCHING_STATS):
     for _period in PITCHING_PERIODS:
         for _stat in PITCHING_STATS:
@@ -718,6 +946,18 @@ def _(ALL_PITCHING_STATS, END_YEAR, PITCHING_DF, PLAYERS_DF, START_YEAR, mo):
         pitching_stats_dropdown,
         start_season_dropdown,
     )
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""### Data Exploration""")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""#### Compare Pitching Statistics for Selected Pitchers""")
+    return
 
 
 @app.cell
@@ -754,6 +994,12 @@ def _(
         ], justify='start'),
         mo.ui.plotly(_fig)
     ])
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""#### Pitching Statistics for All Pitchers on a Team""")
     return
 
 
@@ -795,6 +1041,24 @@ def _(
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### Add Starting Pitching Data to Games
+
+    We need to find the data for a pitcher as of the game date to add in the pitcher's data that is representative of their stats up until, but not including that game.
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""#### Data Preparation""")
+    return
+
+
+@app.cell
 def _(MERGED_DF):
     MERGED_DF_WITH_PITCHING = MERGED_DF.reset_index().rename(columns={'index': 'original_game_index'}).copy()
     return (MERGED_DF_WITH_PITCHING,)
@@ -810,6 +1074,12 @@ def _(PITCHING_DF, PITCHING_STAT_MAPPER):
         'game.datetime': 'datetime'
     }).sort_values('datetime')
     return (pitcher_lookup,)
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""#### Unpivot the Games DataFrame""")
+    return
 
 
 @app.cell
@@ -839,6 +1109,12 @@ def _(MERGED_DF_WITH_PITCHING, pd):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""#### Perform the Time-Series Merge""")
+    return
+
+
+@app.cell
 def _(merged_df_long, pd, pitcher_lookup):
     merged_long = pd.merge_asof(
         merged_df_long,
@@ -848,6 +1124,12 @@ def _(merged_df_long, pd, pitcher_lookup):
         direction='backward'  # This finds the last value <= the key
     )
     return (merged_long,)
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""#### Pivot Results Back to Wide Format""")
+    return
 
 
 @app.cell
@@ -867,9 +1149,33 @@ def _(PITCHING_STAT_MAPPER, merged_long):
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    #### Final Join
+
+    Join the new stats columns back to the original games DataFrame
+    """
+    )
+    return
+
+
+@app.cell
 def _(MERGED_DF_WITH_PITCHING, pivoted_stats):
     MERGED_DF_WITH_PITCHING_FINAL = MERGED_DF_WITH_PITCHING.set_index('original_game_index').join(pivoted_stats)
     return (MERGED_DF_WITH_PITCHING_FINAL,)
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""# Modeling""")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""## Model Training""")
+    return
 
 
 @app.cell
@@ -897,9 +1203,39 @@ def _(
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    #### Split up the dataset with training and test set
+
+    * `x_train`	Features for training
+    * `x_test` Features for testing
+    * `y_train`	Targets for training
+    * `y_test` Targets for testing
+    """
+    )
+    return
+
+
+@app.cell
 def _(train_test_split, x, y):
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3)
     return x_test, x_train, y_test, y_train
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    #### Create a Pipeline
+
+    Using a standard scaler to ensure that all the features are on the same scale and then using the Logistic Regression model
+
+    * `penalty='l2'`: Adds regularization to prevent overfitting.
+    * `max_iter=5000`: Gives the solver more time to converge
+    """
+    )
+    return
 
 
 @app.cell
@@ -918,8 +1254,20 @@ def _(LogisticRegression, StandardScaler, make_pipeline):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""#### Fit the training data into the model""")
+    return
+
+
+@app.cell
 def _(PIPELINE, x_train, y_train):
     PIPELINE.fit(x_train, y_train)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""#### Get the prediction results for the test set""")
     return
 
 
@@ -930,8 +1278,41 @@ def _(PIPELINE, x_test):
 
 
 @app.cell
-def _(classification_report, predictions, y_test):
-    print(classification_report(y_test, predictions))
+def _(mo):
+    mo.md(r"""## Model Metrics""")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    #### Classification Report
+
+    Compare the `y_test` set vs. the actual predictions to get a better sense of the model's accuracy
+    """
+    )
+    return
+
+
+@app.cell
+def _(classification_report, mo, pd, predictions, y_test):
+    import tabulate
+
+    _report_df = pd.DataFrame(classification_report(y_test, predictions, output_dict=True)).transpose()
+    mo.md(_report_df.to_markdown())
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    #### Confusion Matrix
+
+    This shows similar data to the classifiaction report in a graphical format
+    """
+    )
     return
 
 
@@ -949,6 +1330,18 @@ def _(ConfusionMatrixDisplay, PIPELINE, io, mo, plt, x_test, y_test):
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    #### ROC Curve
+
+    We are looking for a higher Area Under the Curve (AUC) score that shows that the model is good at distinguishing wins and losses
+    """
+    )
+    return
+
+
+@app.cell
 def _(PIPELINE, RocCurveDisplay, io, mo, plt, x_test, y_test):
     _fig, _ax = plt.subplots()
     RocCurveDisplay.from_estimator(PIPELINE, x_test, y_test, ax=_ax)
@@ -958,6 +1351,12 @@ def _(PIPELINE, RocCurveDisplay, io, mo, plt, x_test, y_test):
     _buffer.seek(0)
 
     mo.image(_buffer)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""#### Precision Recall Graph""")
     return
 
 
@@ -975,6 +1374,12 @@ def _(PIPELINE, PrecisionRecallDisplay, io, mo, plt, x_test, y_test):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""#### Calibration Display""")
+    return
+
+
+@app.cell
 def _(CalibrationDisplay, PIPELINE, io, mo, plt, x_test, y_test):
     _fig, _ax = plt.subplots()
     CalibrationDisplay.from_estimator(PIPELINE, x_test, y_test, ax=_ax)
@@ -984,6 +1389,12 @@ def _(CalibrationDisplay, PIPELINE, io, mo, plt, x_test, y_test):
     _buffer.seek(0)
 
     mo.image(_buffer)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""#### Histogram of Predicted Probabilities""")
     return
 
 
@@ -998,6 +1409,12 @@ def _(PIPELINE, plt, x_test):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""#### Which Features Had the Biggest Impact to the Predictions""")
+    return
+
+
+@app.cell
 def _(LOGMODEL, pd, plt, x_train):
     coefficients = pd.Series(LOGMODEL.coef_[0], index=x_train.columns)
     coefficients.abs().sort_values(ascending=False).plot(kind='barh', figsize=(10, 8), title='Feature Impact')
@@ -1005,6 +1422,12 @@ def _(LOGMODEL, pd, plt, x_train):
     plt.gca().invert_yaxis()
     plt.tight_layout()
     plt.show()
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""#### How the Features Correlated to a Win or Loss""")
     return
 
 
@@ -1025,8 +1448,20 @@ def _(TRAINER_DF, TRAINING_FIELDS, plt):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""#### Correlation Heatmap""")
+    return
+
+
+@app.cell
 def _(TRAINER_DF, sns):
     sns.heatmap(TRAINER_DF.corr(), cmap='coolwarm', annot=True)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""#### How Often a Win or Loss is Predicted""")
     return
 
 
@@ -1061,7 +1496,13 @@ def _(PITCHING_DF):
 
 @app.cell
 def _(mo):
-    mo.md(r"""# Predictions""")
+    mo.md(
+        r"""
+    # Predictions
+
+    Interactive elements that utilize the model to make predictions
+    """
+    )
     return
 
 
@@ -1078,6 +1519,18 @@ def _(last_season_pitching_data):
         return last_season_pitching_data[last_season_pitching_data['person.key'] \
                                          == pitcher_id].groupby('person.key').last().iloc[-1]
     return (get_last_pitching_stats,)
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    #### Create a Single Game Series
+
+    Given the team and the pitcher, create a Series with the batting and pitching statistics that we can use to generate predictions
+    """
+    )
+    return
 
 
 @app.cell
@@ -1104,6 +1557,18 @@ def _(BATTING_PERIODS, BATTING_STATS, PITCHING_STAT_MAPPER, pd):
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    #### Generate a Game Prediction
+
+    Given 2 teams and their starting pitchers, generate a prediction for a win or loss
+    """
+    )
+    return
+
+
+@app.cell
 def _(create_game_series, get_last_pitching_stats, get_last_team_stats, pd):
     def predict_game(model, home_team, home_pitcher_id, visiting_team, visiting_pitcher_id):
         home_team_stats = get_last_team_stats(home_team)
@@ -1119,6 +1584,12 @@ def _(create_game_series, get_last_pitching_stats, get_last_team_stats, pd):
 
         return probs[0][1], probs[0][0]
     return (predict_game,)
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""### Create an Interactive Form to Predict a Game""")
+    return
 
 
 @app.cell
@@ -1221,6 +1692,12 @@ def _(
         mo.ui.plotly(_fig)
     ])
 
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""### Given 2 Teams, how to all the pitching matchups affect the predictions of a game""")
     return
 
 
@@ -1331,11 +1808,6 @@ def _(
         ], justify="start"),
         mo.ui.plotly(_figure)
     ])
-    return
-
-
-@app.cell
-def _():
     return
 
 
