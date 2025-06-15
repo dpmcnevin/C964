@@ -958,7 +958,7 @@ def _(create_game_series, get_last_pitching_stats, get_last_team_stats, pd):
         away_pitcher_stats = get_last_pitching_stats(visiting_pitcher_id)
 
         game = create_game_series(home_team_stats, home_pitcher_stats, away_team_stats, away_pitcher_stats)
-
+    
         game_df = pd.DataFrame([game])
         probs = model.predict_proba(game_df)
 
@@ -982,18 +982,23 @@ def _(
     prediction_away_team_dropdown,
     prediction_home_team_dropdown,
 ):
-    _home_pitchers = PITCHING_DF[(PITCHING_DF['team.key'] == prediction_home_team_dropdown.value) & (PITCHING_DF['season'] == 2024)]['person.key'].to_list()
+    _home_pitchers = PITCHING_DF[(PITCHING_DF['team.key'] == prediction_home_team_dropdown.value) & (PITCHING_DF['season'] == 2024)].dropna()['person.key'].to_list()
     home_pitchers_list = {k: PITCHERS_LIST[k] for k in _home_pitchers if k in PITCHERS_LIST}
     home_pitchers_list_reversed = {v: k for k, v in home_pitchers_list.items()}
 
     prediction_home_pitcher_dropdown = mo.ui.dropdown(options=home_pitchers_list_reversed, value=list(home_pitchers_list_reversed.keys())[1], searchable=True)
 
-    _away_pitchers = PITCHING_DF[(PITCHING_DF['team.key'] == prediction_away_team_dropdown.value) & (PITCHING_DF['season'] == 2024)]['person.key'].to_list()
+    _away_pitchers = PITCHING_DF[(PITCHING_DF['team.key'] == prediction_away_team_dropdown.value) & (PITCHING_DF['season'] == 2024)].dropna()['person.key'].to_list()
     away_pitchers_list = {k: PITCHERS_LIST[k] for k in _away_pitchers if k in PITCHERS_LIST}
     away_pitchers_list_reversed = {v: k for k, v in away_pitchers_list.items()}
 
     prediction_away_pitcher_dropdown = mo.ui.dropdown(options=away_pitchers_list_reversed, value=list(away_pitchers_list_reversed.keys())[1], searchable=True)
-    return prediction_away_pitcher_dropdown, prediction_home_pitcher_dropdown
+    return (
+        away_pitchers_list,
+        home_pitchers_list,
+        prediction_away_pitcher_dropdown,
+        prediction_home_pitcher_dropdown,
+    )
 
 
 @app.cell
@@ -1061,6 +1066,112 @@ def _(
         mo.ui.plotly(_fig)
     ])
 
+    return
+
+
+@app.cell
+def _(PIPELINE, pd, predict_game):
+    def create_pitching_prediction_dataframe(home_team, away_team, player_data):
+        # Get pitcher ID lists
+        # home_pitchers_list = [pitcher_id for pitcher_id, _ in player_data[home_team]]
+        # away_pitchers_list = [pitcher_id for pitcher_id, _ in player_data[away_team]]
+    
+        home_pitchers_list = player_data[home_team]
+        away_pitchers_list = player_data[away_team]
+    
+        # Run predictions and store results
+        results = []
+
+        for h_pitcher in home_pitchers_list:
+            row = {}
+            for a_pitcher in away_pitchers_list:
+                home_prob, away_prob = predict_game(PIPELINE, home_team, h_pitcher, away_team, a_pitcher)
+                row[a_pitcher] = home_prob * 100
+                print(".", end="")
+            results.append(pd.Series(row, name=h_pitcher))
+
+        pitching_prediction_dataframe = pd.DataFrame(results)
+        pitching_prediction_dataframe.index.name = 'Home Pitcher'
+        pitching_prediction_dataframe.columns.name = 'Away Pitcher'
+
+        return pitching_prediction_dataframe.dropna()
+    return (create_pitching_prediction_dataframe,)
+
+
+@app.cell
+def _(create_pitching_prediction_dataframe, px):
+    def create_prediction_heatmap(home_team, away_team, data):
+
+        df = create_pitching_prediction_dataframe(home_team, away_team, data)
+
+        # Plotly
+        df_reset = df.reset_index().melt(id_vars='Home Pitcher', var_name='Away Pitcher', value_name='Win %')
+
+        figure = px.density_heatmap(
+            df_reset,
+            x='Away Pitcher',
+            y='Home Pitcher',
+            z='Win %',
+            color_continuous_scale='RdBu_r',
+            range_color=[0, 100],
+            text_auto='.1f'
+        )
+
+        figure.update_layout(
+            title=f"{home_team} Win Probability vs {away_team} Pitchers",
+            xaxis_title=away_team,
+            yaxis_title=home_team,
+            coloraxis_colorbar=dict(title="Win %"),
+            yaxis=dict(autorange='reversed'),
+            height=800
+        )
+
+        return figure
+    return
+
+
+@app.cell
+def _(
+    away_pitchers_list,
+    create_pitching_prediction_dataframe,
+    home_pitchers_list,
+    mo,
+    prediction_away_team_dropdown,
+    prediction_home_team_dropdown,
+    px,
+):
+    _team_data = {}
+    _team_data[prediction_home_team_dropdown.value] = home_pitchers_list.keys()
+    _team_data[prediction_away_team_dropdown.value] = away_pitchers_list.keys()
+
+    _home_team = prediction_home_team_dropdown.value
+    _away_team = prediction_away_team_dropdown.value
+
+    _df = create_pitching_prediction_dataframe(_home_team, _away_team, _team_data)
+
+    # Plotly
+    _df_reset = _df.reset_index().melt(id_vars='Home Pitcher', var_name='Away Pitcher', value_name='Win %')
+
+    _figure = px.density_heatmap(
+        _df_reset,
+        x='Away Pitcher',
+        y='Home Pitcher',
+        z='Win %',
+        color_continuous_scale='RdBu_r',
+        range_color=[0, 100],
+        text_auto='.1f'
+    )
+
+    _figure.update_layout(
+        title=f"{_home_team} Win Probability vs {_away_team} Pitchers",
+        xaxis_title=_away_team,
+        yaxis_title=_home_team,
+        coloraxis_colorbar=dict(title="Win %"),
+        yaxis=dict(autorange='reversed'),
+        height=800
+    )
+
+    mo.ui.plotly(_figure)
     return
 
 
