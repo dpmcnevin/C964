@@ -1070,25 +1070,23 @@ def _(
 
 
 @app.cell
-def _(PIPELINE, pd, predict_game):
+def _(PIPELINE, PLAYERS_DF, pd, predict_game):
     def create_pitching_prediction_dataframe(home_team, away_team, player_data):
-        # Get pitcher ID lists
-        # home_pitchers_list = [pitcher_id for pitcher_id, _ in player_data[home_team]]
-        # away_pitchers_list = [pitcher_id for pitcher_id, _ in player_data[away_team]]
-    
         home_pitchers_list = player_data[home_team]
         away_pitchers_list = player_data[away_team]
     
         # Run predictions and store results
         results = []
-
+    
         for h_pitcher in home_pitchers_list:
             row = {}
             for a_pitcher in away_pitchers_list:
+                away_pitcher_name = PLAYERS_DF.loc[a_pitcher]['LAST']
                 home_prob, away_prob = predict_game(PIPELINE, home_team, h_pitcher, away_team, a_pitcher)
-                row[a_pitcher] = home_prob * 100
+                row[away_pitcher_name] = home_prob * 100
                 print(".", end="")
-            results.append(pd.Series(row, name=h_pitcher))
+            home_pitcher_name = PLAYERS_DF.loc[h_pitcher]['LAST']
+            results.append(pd.Series(row, name=home_pitcher_name))
 
         pitching_prediction_dataframe = pd.DataFrame(results)
         pitching_prediction_dataframe.index.name = 'Home Pitcher'
@@ -1104,7 +1102,6 @@ def _(create_pitching_prediction_dataframe, px):
 
         df = create_pitching_prediction_dataframe(home_team, away_team, data)
 
-        # Plotly
         df_reset = df.reset_index().melt(id_vars='Home Pitcher', var_name='Away Pitcher', value_name='Win %')
 
         figure = px.density_heatmap(
@@ -1171,7 +1168,14 @@ def _(
         height=800
     )
 
-    mo.ui.plotly(_figure)
+
+    mo.vstack([
+        mo.hstack([
+            prediction_home_team_dropdown,     
+            prediction_away_team_dropdown
+        ], justify="start"),
+        mo.ui.plotly(_figure)
+    ])
     return
 
 
