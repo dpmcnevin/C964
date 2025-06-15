@@ -1,10 +1,7 @@
 import marimo
 
 __generated_with = "0.13.15"
-app = marimo.App(
-    width="medium",
-    layout_file="layouts/C964_Daniel_McNevin.grid.json",
-)
+app = marimo.App(width="medium")
 
 
 @app.cell(hide_code=True)
@@ -25,7 +22,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-    ### Terms
+    #### Terms
 
     ```
      The information used here was obtained free of
@@ -221,20 +218,6 @@ def _():
 
 
 @app.cell
-def _(mo):
-    mo.md(
-        r"""
-    ### Team Import
-
-    Get a list of all teams that are all active in 2024
-
-    This will set a `TEAMS` global variable that has a DataFrame of all teams
-    """
-    )
-    return
-
-
-@app.cell
 def _(RETROSHEET_DIR, pd):
     TEAMS_DF = pd.read_csv(f"{RETROSHEET_DIR}/reference/teams.csv.zip")
 
@@ -320,7 +303,7 @@ def _(END_YEAR, RETROSHEET_DIR, START_YEAR, pd):
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Header Columns""")
+    mo.md(r"""#### Header Columns""")
     return
 
 
@@ -388,7 +371,7 @@ def _():
 def _(mo):
     mo.md(
         r"""
-    ### Add Columns and Fields to DataFrame
+    #### Add Columns and Fields to DataFrame
 
     * Add the column headers to the DataFrame
     * Add `datetime` as a parsed version of the games' `date` for easier compairision and graphing
@@ -419,7 +402,7 @@ def _(ALL_SEASONS_DF, GAMELOG_COLUMNS, pd):
 def _(mo):
     mo.md(
         r"""
-    ### Drop columns that we don't need
+    #### Drop columns that we don't need
 
     Out model doesn't currently include any information about position players, so remove it from the DataFrame
     """
@@ -480,7 +463,7 @@ def _(ALL_SEASONS_DF):
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Remove ties""")
+    mo.md(r"""#### Remove ties""")
     return
 
 
@@ -493,7 +476,7 @@ def _(ALL_SEASONS_DF):
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Set the binary value of a win or loss based on the score""")
+    mo.md(r"""#### Set the binary value of a win or loss based on the score""")
     return
 
 
@@ -506,39 +489,17 @@ def _(ALL_SEASONS_DF, np):
 
 @app.cell
 def _(mo):
-    mo.md(r"""#### Batting Stats""")
-    return
-
-
-@app.cell
-def _(mo):
     mo.md(
         r"""
-    ### Batting Statistics
+    ### Batting Stats
 
-    * Batting Average (BA)
+    $\text{Batting Average (BA)} = \frac{\text{Hits}}{\text{At Bats}}$
 
-    $$
-    \text{Batting Average} = \frac{\text{Hits}}{\text{At Bats}}
-    $$
+    $\text{Slugging Percentage (SLG)} = \frac{1B + (2 \times 2B) + (3 \times 3B) + (4 \times HR)}{\text{At Bats}}$
 
-    * Slugging Percentage (SLG)
+    $\text{On-Base Percentage (OBP)} = \frac{H + BB + HBP}{AB + BB + HBP + SF}$
 
-    $$
-    \text{SLG} = \frac{1B + (2 \times 2B) + (3 \times 3B) + (4 \times HR)}{\text{At Bats}}
-    $$
-
-    * On-Base Percentage (OBP)
-
-    $$
-    \text{OBP} = \frac{H + BB + HBP}{AB + BB + HBP + SF}
-    $$
-
-    * On-Base Plus Slugging Percentages (OPS)
-
-    $$
-    \text{OPS} = \text{OBP} + \text{SLG}
-    $$
+    $\text{On-Base Plus Slugging Percentages (OPS)} = \text{OBP} + \text{SLG}$
     """
     )
     return
@@ -722,20 +683,20 @@ def _(TEAM_DATA, pd):
 
 @app.cell
 def _(ALL_BATTING_STATS, TEAMS_LIST_REVERSED, mo):
-    teams_dropdown = mo.ui.dropdown(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[0], searchable=True)
-    batting_stats_dropdown = mo.ui.dropdown(options=ALL_BATTING_STATS, value=ALL_BATTING_STATS[0], searchable=True)
-    return batting_stats_dropdown, teams_dropdown
+    season_teams_dropdown = mo.ui.dropdown(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[0], searchable=True)
+    season_batting_stats_dropdown = mo.ui.dropdown(options=ALL_BATTING_STATS, value=ALL_BATTING_STATS[-1], searchable=True)
+    return season_batting_stats_dropdown, season_teams_dropdown
 
 
 @app.cell
-def _(TEAM_DATA, batting_stats_dropdown, mo, px, teams_dropdown):
-    _df = TEAM_DATA[teams_dropdown.value].groupby('season')[batting_stats_dropdown.value].mean().reset_index()
-    _plot = px.line(_df, x='season', y=batting_stats_dropdown.value, title=f"Mean {batting_stats_dropdown.value} Per Season for {batting_stats_dropdown.value}")
+def _(TEAM_DATA, mo, px, season_batting_stats_dropdown, season_teams_dropdown):
+    _df = TEAM_DATA[season_teams_dropdown.value].groupby('season')[season_batting_stats_dropdown.value].mean().reset_index()
+    _plot = px.line(_df, x='season', y=season_batting_stats_dropdown.value, title=f"Mean {season_batting_stats_dropdown.value} Per Season for {season_batting_stats_dropdown.value}")
 
     mo.vstack([
         mo.hstack([
-            teams_dropdown,
-            batting_stats_dropdown,
+            season_teams_dropdown,
+            season_batting_stats_dropdown,
         ], justify='start'),
         mo.ui.plotly(_plot)
     ])
@@ -743,9 +704,10 @@ def _(TEAM_DATA, batting_stats_dropdown, mo, px, teams_dropdown):
 
 
 @app.cell
-def _(TEAMS_LIST_REVERSED, mo):
+def _(ALL_BATTING_STATS, TEAMS_LIST_REVERSED, mo):
     teams_multi_dropdown = mo.ui.multiselect(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[:1], max_selections=5)
-    return (teams_multi_dropdown,)
+    teams_batting_stats_dropdown = mo.ui.dropdown(options=ALL_BATTING_STATS, value=ALL_BATTING_STATS[-1], searchable=True)
+    return teams_batting_stats_dropdown, teams_multi_dropdown
 
 
 @app.cell
@@ -755,11 +717,17 @@ def _(mo):
 
 
 @app.cell
-def _(TEAM_DATA_DF, batting_stats_dropdown, mo, px, teams_multi_dropdown):
+def _(
+    TEAM_DATA_DF,
+    mo,
+    px,
+    teams_batting_stats_dropdown,
+    teams_multi_dropdown,
+):
     _fig = px.line(
         TEAM_DATA_DF[TEAM_DATA_DF['team_team'].isin(teams_multi_dropdown.value)],
         x='datetime',
-        y=batting_stats_dropdown.value,
+        y=teams_batting_stats_dropdown.value,
         color='team_team',
         markers=False
     )
@@ -767,7 +735,7 @@ def _(TEAM_DATA_DF, batting_stats_dropdown, mo, px, teams_multi_dropdown):
     mo.vstack([
         mo.hstack([
             teams_multi_dropdown,
-            batting_stats_dropdown,
+            teams_batting_stats_dropdown,
         ], justify='start'),
         mo.ui.plotly(_fig)
     ])
@@ -879,17 +847,10 @@ def _(mo):
         r"""
     ### Calculate Per-Game Pitching Stats
 
-    * Earned Run Average
 
-    $$
-    \text{ERA} = \left( \frac{\text{Earned Runs}}{\text{Innings Pitched}} \right) \times 9
-    $$
+    $\text{Earned Run Average (ERA)} = \left( \frac{\text{Earned Runs}}{\text{Innings Pitched}} \right) \times 9$
 
-    * Walks and Hits per Innings Pitched
-
-    $$
-    \text{WHIP} = \frac{\text{Walks} + \text{Hits}}{\text{Innings Pitched}}
-    $$
+    $\text{Walks and Hits per Innings Pitched (WHIP)} = \frac{\text{Walks} + \text{Hits}}{\text{Innings Pitched}}$
     """
     )
     return
@@ -942,61 +903,64 @@ def _(mo):
 
 
 @app.cell
-def _(ALL_PITCHING_STATS, END_YEAR, PITCHING_DF, PLAYERS_DF, START_YEAR, mo):
+def _(PITCHING_DF, PLAYERS_DF):
     _pitchers = PLAYERS_DF.loc[PITCHING_DF['person.key'].unique()].copy()
     _pitchers['NAME'] = _pitchers['NICKNAME'] + " " + _pitchers['LAST'] + " (" + _pitchers.index + ")"
 
     PITCHERS_LIST = _pitchers['NAME'].to_dict()
     PITCHERS_LIST_REVERSED = {v: k for k, v in PITCHERS_LIST.items()}
+    return PITCHERS_LIST, PITCHERS_LIST_REVERSED
 
+
+@app.cell
+def _(ALL_PITCHING_STATS, END_YEAR, PITCHERS_LIST_REVERSED, START_YEAR, mo):
     _default_pitcher_ids = ['imans001', 'kersc001', 'salec001', 'skenp001']
     _default_list = {k: v for k, v in PITCHERS_LIST_REVERSED.items() if v in _default_pitcher_ids}
 
     pitchers_multiselect = mo.ui.multiselect(options=PITCHERS_LIST_REVERSED, max_selections=5, value=_default_list)
-    pitching_stats_dropdown = mo.ui.dropdown(options=ALL_PITCHING_STATS, value=ALL_PITCHING_STATS[-1], searchable=True)
+    pitchers_stats_dropdown = mo.ui.dropdown(options=ALL_PITCHING_STATS, value=ALL_PITCHING_STATS[-1], searchable=True)
 
-    start_season_dropdown = mo.ui.dropdown(options=range(START_YEAR, END_YEAR), value=END_YEAR - 1)
-    end_season_dropdown = mo.ui.dropdown(options=range(START_YEAR, END_YEAR), value=END_YEAR - 1)
+    pitchers_start_season_dropdown = mo.ui.dropdown(options=range(START_YEAR, END_YEAR), value=END_YEAR - 1)
+    pitchers_end_season_dropdown = mo.ui.dropdown(options=range(START_YEAR, END_YEAR), value=END_YEAR - 1)
     return (
-        PITCHERS_LIST,
-        end_season_dropdown,
+        pitchers_end_season_dropdown,
         pitchers_multiselect,
-        pitching_stats_dropdown,
-        start_season_dropdown,
+        pitchers_start_season_dropdown,
+        pitchers_stats_dropdown,
     )
 
 
 @app.cell
 def _(
     PITCHING_DF,
-    end_season_dropdown,
     get_player_name,
     mo,
+    pitchers_end_season_dropdown,
     pitchers_multiselect,
-    pitching_stats_dropdown,
+    pitchers_start_season_dropdown,
+    pitchers_stats_dropdown,
     px,
-    start_season_dropdown,
 ):
     _data = PITCHING_DF[PITCHING_DF['person.key'].isin(pitchers_multiselect.value)]
-    _data = _data[(_data['season'] >= start_season_dropdown.value) & (_data['season'] <= end_season_dropdown.value)]
+    _data = _data[(_data['season'] >= pitchers_start_season_dropdown.value) & (_data['season'] <= pitchers_end_season_dropdown.value)]
 
     _data['player_name'] = _data['person.key'].map(get_player_name)
 
     _fig = px.line(
         _data,
         x='game.datetime',
-        y=pitching_stats_dropdown.value,
+        y=pitchers_stats_dropdown.value,
         color='player_name',
         markers=False,
-        title=f"{pitching_stats_dropdown.value} ({start_season_dropdown.value} - {end_season_dropdown.value})"
+        title=f"{pitchers_stats_dropdown.value} ({pitchers_start_season_dropdown.value} - {pitchers_end_season_dropdown.value})"
     )
 
     mo.vstack([
         mo.hstack([
             pitchers_multiselect,
-            pitching_stats_dropdown,
-            start_season_dropdown,
-            end_season_dropdown,
+            pitchers_stats_dropdown,
+            pitchers_start_season_dropdown,
+            pitchers_end_season_dropdown,
         ], justify='start'),
         mo.ui.plotly(_fig)
     ])
@@ -1010,36 +974,50 @@ def _(mo):
 
 
 @app.cell
+def _(ALL_PITCHING_STATS, END_YEAR, START_YEAR, TEAMS_LIST_REVERSED, mo):
+    team_pitching_teams_dropdown = mo.ui.dropdown(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[0], searchable=True)
+    team_pitching_stats_dropdown = mo.ui.dropdown(options=ALL_PITCHING_STATS, value=ALL_PITCHING_STATS[-1], searchable=True)
+    team_pitching_start_season_dropdown = mo.ui.dropdown(options=range(START_YEAR, END_YEAR), value=END_YEAR - 1)
+    team_pitching_end_season_dropdown = mo.ui.dropdown(options=range(START_YEAR, END_YEAR), value=END_YEAR - 1)
+    return (
+        team_pitching_end_season_dropdown,
+        team_pitching_start_season_dropdown,
+        team_pitching_stats_dropdown,
+        team_pitching_teams_dropdown,
+    )
+
+
+@app.cell
 def _(
     PITCHING_DF,
-    end_season_dropdown,
     get_player_name,
     mo,
-    pitching_stats_dropdown,
     px,
-    start_season_dropdown,
-    teams_dropdown,
+    team_pitching_end_season_dropdown,
+    team_pitching_start_season_dropdown,
+    team_pitching_stats_dropdown,
+    team_pitching_teams_dropdown,
 ):
-    _data = PITCHING_DF[PITCHING_DF['team.key'] == teams_dropdown.value]
-    _data = _data[(_data['season'] >= start_season_dropdown.value) & (_data['season'] <= end_season_dropdown.value)]
+    _data = PITCHING_DF[PITCHING_DF['team.key'] == team_pitching_teams_dropdown.value]
+    _data = _data[(_data['season'] >= team_pitching_start_season_dropdown.value) & (_data['season'] <= team_pitching_end_season_dropdown.value)]
 
     _data['player_name'] = _data['person.key'].map(get_player_name)
 
     _fig = px.line(
         _data,
         x='game.datetime',
-        y=pitching_stats_dropdown.value,
+        y=team_pitching_stats_dropdown.value,
         color='player_name',
         markers=False,
-        title=f"{pitching_stats_dropdown.value} ({start_season_dropdown.value} - {end_season_dropdown.value})"
+        title=f"{team_pitching_stats_dropdown.value} ({team_pitching_start_season_dropdown.value} - {team_pitching_end_season_dropdown.value})"
     )
 
     mo.vstack([
         mo.hstack([
-            teams_dropdown,
-            pitching_stats_dropdown,
-            start_season_dropdown,
-            end_season_dropdown,
+            team_pitching_teams_dropdown,
+            team_pitching_stats_dropdown,
+            team_pitching_start_season_dropdown,
+            team_pitching_end_season_dropdown,
         ], justify='start'),
         mo.ui.plotly(_fig)
     ])
@@ -1766,21 +1744,29 @@ def _(create_pitching_prediction_dataframe, px):
 
 
 @app.cell
+def _(TEAMS_LIST_REVERSED, mo):
+    all_pitchers_home_team_dropdown = mo.ui.dropdown(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[0], searchable=True)
+
+    all_pitchers_away_team_dropdown = mo.ui.dropdown(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[1], searchable=True)
+    return all_pitchers_away_team_dropdown, all_pitchers_home_team_dropdown
+
+
+@app.cell
 def _(
+    all_pitchers_away_team_dropdown,
+    all_pitchers_home_team_dropdown,
     away_pitchers_list,
     create_pitching_prediction_dataframe,
     home_pitchers_list,
     mo,
-    prediction_away_team_dropdown,
-    prediction_home_team_dropdown,
     px,
 ):
     _team_data = {}
-    _team_data[prediction_home_team_dropdown.value] = home_pitchers_list.keys()
-    _team_data[prediction_away_team_dropdown.value] = away_pitchers_list.keys()
+    _team_data[all_pitchers_home_team_dropdown.value] = home_pitchers_list.keys()
+    _team_data[all_pitchers_away_team_dropdown.value] = away_pitchers_list.keys()
 
-    _home_team = prediction_home_team_dropdown.value
-    _away_team = prediction_away_team_dropdown.value
+    _home_team = all_pitchers_home_team_dropdown.value
+    _away_team = all_pitchers_away_team_dropdown.value
 
     _df = create_pitching_prediction_dataframe(_home_team, _away_team, _team_data)
 
@@ -1809,8 +1795,8 @@ def _(
 
     mo.vstack([
         mo.hstack([
-            prediction_home_team_dropdown,     
-            prediction_away_team_dropdown
+            all_pitchers_home_team_dropdown,     
+            all_pitchers_away_team_dropdown
         ], justify="start"),
         mo.ui.plotly(_figure)
     ])
