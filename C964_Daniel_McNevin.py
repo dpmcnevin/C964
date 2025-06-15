@@ -13,16 +13,6 @@ def _(mo):
     *Name*: Daniel McNevin
 
     *Email*: dmcnev2@wgu.edu
-    """
-    )
-    return
-
-
-@app.cell(hide_code=True)
-def _(mo):
-    mo.md(
-        r"""
-    #### Terms
 
     ```
      The information used here was obtained free of
@@ -153,13 +143,13 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""# Data Setup""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""## Data Import""")
     return
@@ -446,7 +436,7 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-    ### Check for ties
+    ### Remove Ties
 
     There are exceptional situations where a game can end in a tie. These games can be safely removed if they don't make up a large percentage of the total games
     """
@@ -487,11 +477,11 @@ def _(ALL_SEASONS_DF, np):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
-    ### Batting Stats
+    ## Batting Stats
 
     $\text{Batting Average (BA)} = \frac{\text{Hits}}{\text{At Bats}}$
 
@@ -553,7 +543,7 @@ def _(ALL_SEASONS_DF):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -667,7 +657,7 @@ def _(BATTING_PERIODS, BATTING_STATS, TEAMS, TEAM_DATA, pd):
 def _(mo):
     mo.md(
         r"""
-    ### Per-Team Data Exploration
+    ### Per-Team Batting Data Exploration
 
     Explore some of the stats that have been calculated
     """
@@ -761,7 +751,7 @@ def _(
 def _(mo):
     mo.md(
         r"""
-    ## Add the Aggregated Data Back Into the Game Logs
+    ### Add the Aggregated Data Back Into the Game Logs
 
     Merge the batting rolling averages in to a new DataFrame that has the original game data plus the rolling averages for the home and away team going into that game
     """
@@ -811,7 +801,7 @@ def _(ALL_SEASONS_DF, BATTING_PERIODS, BATTING_STATS, TEAMS, TEAM_DATA):
     return (MERGED_DF,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -907,7 +897,7 @@ def _(PITCHING_DF, PITCHING_PERIODS, PITCHING_STATS):
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Data Exploration""")
+    mo.md(r"""### Pitching Data Exploration""")
     return
 
 
@@ -1166,7 +1156,7 @@ def _(MERGED_DF_WITH_PITCHING, pivoted_stats):
     return (MERGED_DF_WITH_PITCHING_FINAL,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""# Modeling""")
     return
@@ -1494,15 +1484,9 @@ def _(PITCHING_DF):
     return (last_season_pitching_data,)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
-    mo.md(
-        r"""
-    # Predictions
-
-    Interactive elements that utilize the model to make predictions
-    """
-    )
+    mo.md(r"""# Predictions""")
     return
 
 
@@ -1588,7 +1572,7 @@ def _(create_game_series, get_last_pitching_stats, get_last_team_stats, pd):
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Create an Interactive Form to Predict a Game""")
+    mo.md(r"""### Predict the Outcome of a Game""")
     return
 
 
@@ -1706,12 +1690,12 @@ def _(
     mo.vstack([
         mo.hstack([
             mo.vstack([
-                mo.md("### Away"),
+                mo.md("#### Away"),
                 prediction_away_team_dropdown,
                 prediction_away_pitcher_dropdown
             ]),
             mo.vstack([
-                mo.md("### Home"),
+                mo.md("#### Home"),
                 prediction_home_team_dropdown,     
                 prediction_home_pitcher_dropdown
             ]),
@@ -1724,7 +1708,7 @@ def _(
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Given 2 Teams, how to all the pitching matchups affect the predictions of a game""")
+    mo.md(r"""### Preidct the Outcome of a Game for All Starting Pitchers""")
     return
 
 
@@ -1866,11 +1850,11 @@ def _(
     mo.vstack([
         mo.hstack([
             mo.vstack([
-                mo.md("### Away"),
+                mo.md("#### Away"),
                 all_pitchers_away_team_dropdown
             ]),
             mo.vstack([
-                mo.md("### Home"),
+                mo.md("#### Home"),
                 all_pitchers_home_team_dropdown
             ]),        
         ], justify="start"),
