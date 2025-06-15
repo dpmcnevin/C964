@@ -5,6 +5,54 @@ app = marimo.App(width="medium")
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    # WGU C964 Task 2
+
+    *Name*: Daniel McNevin
+
+    *Email*: dmcnev2@wgu.edu
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### Terms
+
+    ```
+     The information used here was obtained free of
+     charge from and is copyrighted by Retrosheet.  Interested
+     parties may contact Retrosheet at "www.retrosheet.org".
+    ```
+    """
+    )
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""# Global Setup""")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### Global Imports
+
+    Install packages and import needed libraries
+    """
+    )
+    return
+
+
+@app.cell
 def _():
     import io
 
@@ -48,6 +96,18 @@ def _():
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### General Setup
+
+    Set up global variables
+    """
+    )
+    return
+
+
+@app.cell
 def _():
     HOME_DIR = "."
 
@@ -58,6 +118,12 @@ def _():
     START_YEAR = 1980
     END_YEAR = 2025
     return DAILY_FILES, END_YEAR, RETROSHEET_DIR, START_YEAR
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""#### Batting Stats""")
+    return
 
 
 @app.cell
@@ -85,6 +151,38 @@ def _(mo):
 
     BATTING_STATS_DROPDOWN = mo.ui.dropdown(options=ALL_BATTING_STATS, value=ALL_BATTING_STATS[0], searchable=True)
     return ALL_BATTING_STATS, BATTING_PERIODS, BATTING_STATS
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""#### Pitching Stats""")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""# Data Setup""")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""## Data Import""")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### Team Import
+
+    Get a list of all teams that are all active in 2024
+
+    This will set a `TEAMS` global variable that has a DataFrame of all teams
+    """
+    )
+    return
 
 
 @app.cell
@@ -274,6 +372,40 @@ def _(ALL_SEASONS_DF, np):
 
 
 @app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### Batting Statistics
+
+    * Batting Average (BA)
+
+    $$
+    \text{Batting Average} = \frac{\text{Hits}}{\text{At Bats}}
+    $$
+
+    * Slugging Percentage (SLG)
+
+    $$
+    \text{SLG} = \frac{1B + (2 \times 2B) + (3 \times 3B) + (4 \times HR)}{\text{At Bats}}
+    $$
+
+    * On-Base Percentage (OBP)
+
+    $$
+    \text{OBP} = \frac{H + BB + HBP}{AB + BB + HBP + SF}
+    $$
+
+    * On-Base Plus Slugging Percentages (OPS)
+
+    $$
+    \text{OPS} = \text{OBP} + \text{SLG}
+    $$
+    """
+    )
+    return
+
+
+@app.cell
 def _(ALL_SEASONS_DF):
     def calculate_batting_stats(dataframe):
         for location in ['home', 'visiting']:
@@ -317,6 +449,7 @@ def _(ALL_SEASONS_DF):
         return dataframe
 
     calculate_batting_stats(ALL_SEASONS_DF)
+    print()
     return
 
 
@@ -451,38 +584,38 @@ def _(TEAM_DATA_DF, batting_stats_dropdown, mo, px, teams_multi_dropdown):
 @app.cell
 def _(ALL_SEASONS_DF, BATTING_PERIODS, BATTING_STATS, TEAMS, TEAM_DATA):
     def merge_team_rolled_stats(all_seasons_df, teams_dict):
-    
+
         merged_df = all_seasons_df.copy()
         merged_df.set_index('game_id', inplace=True)
-    
+
         fields_to_merge = [
             'game_id',
             'team_team',
             'is_home_game',
             *[f"team_{stat}_{period}" for stat in BATTING_STATS for period in BATTING_PERIODS]
         ]
-    
+
         for loc in ['home', 'visiting']:
-    
+
             ## Make sure the new fields are present to update
             for field in [f"{loc}_{stat}_{period}" for stat in BATTING_STATS for period in BATTING_PERIODS]:
                 merged_df[field] = None
-    
+
             rename_map = {
                 f"team_{stat}_{period}": f"{loc}_{stat}_{period}"
                 for stat in BATTING_STATS
                 for period in BATTING_PERIODS
             }
-    
+
             for _team in TEAMS.index:
                 team_df = teams_dict[_team][fields_to_merge].copy()
-    
+
                 is_home_game = (loc == 'home')
                 team_df = team_df.query('is_home_game == @is_home_game').copy()
                 team_df.rename(columns=rename_map, inplace=True)
                 team_df.set_index('game_id', inplace=True)
                 merged_df.update(team_df)
-            
+
         return merged_df
 
     MERGED_DF = merge_team_rolled_stats(ALL_SEASONS_DF, TEAM_DATA)
@@ -502,7 +635,7 @@ def _(DAILY_FILES, END_YEAR, START_YEAR, pd):
             _season = pd.read_csv(f"{DAILY_FILES}/playing-{year}.csv.zip")
             _season['season'] = year
             _season['game.datetime'] = pd.to_datetime(_season['game.date'], format='%Y-%m-%d')
-    
+
             ## Filter for only pitchers and remove batting and fielding data
             year_pitching_data = _season[
                                      ## Events
@@ -512,13 +645,35 @@ def _(DAILY_FILES, END_YEAR, START_YEAR, pd):
                                      ## Total batters faced is more than 0
                                      & (_season['P_TBF'] > 0)
                                      ].loc[:,~(_season.columns.str.startswith('B_') | _season.columns.str.startswith('F_'))].copy()
-        
+
             _dfs.append(year_pitching_data)
-    
+
         return pd.concat(_dfs, axis=0, ignore_index=True)
 
     PITCHING_DF = get_pitching_dataframe().sort_values(by=['person.key', 'game.datetime'])
     return (PITCHING_DF,)
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
+    ### Calculate Per-Game Pitching Stats
+
+    * Earned Run Average
+
+    $$
+    \text{ERA} = \left( \frac{\text{Earned Runs}}{\text{Innings Pitched}} \right) \times 9
+    $$
+
+    * Walks and Hits per Innings Pitched
+
+    $$
+    \text{WHIP} = \frac{\text{Walks} + \text{Hits}}{\text{Innings Pitched}}
+    $$
+    """
+    )
+    return
 
 
 @app.cell
@@ -539,7 +694,7 @@ def _(PITCHING_DF, PITCHING_PERIODS, PITCHING_STATS):
                 .groupby('person.key')[_stat]
                 .transform(lambda s: s.shift(1).rolling(window=_period, min_periods=1).mean())
             )
-        
+
     return
 
 
@@ -958,7 +1113,7 @@ def _(create_game_series, get_last_pitching_stats, get_last_team_stats, pd):
         away_pitcher_stats = get_last_pitching_stats(visiting_pitcher_id)
 
         game = create_game_series(home_team_stats, home_pitcher_stats, away_team_stats, away_pitcher_stats)
-    
+
         game_df = pd.DataFrame([game])
         probs = model.predict_proba(game_df)
 
@@ -1074,10 +1229,10 @@ def _(PIPELINE, PLAYERS_DF, pd, predict_game):
     def create_pitching_prediction_dataframe(home_team, away_team, player_data):
         home_pitchers_list = player_data[home_team]
         away_pitchers_list = player_data[away_team]
-    
+
         # Run predictions and store results
         results = []
-    
+
         for h_pitcher in home_pitchers_list:
             row = {}
             for a_pitcher in away_pitchers_list:
