@@ -1,10 +1,13 @@
 import marimo
 
 __generated_with = "0.13.15"
-app = marimo.App(width="medium")
+app = marimo.App(
+    width="medium",
+    layout_file="layouts/C964_Daniel_McNevin.grid.json",
+)
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -18,7 +21,7 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -34,13 +37,13 @@ def _(mo):
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""# Global Setup""")
     return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(mo):
     mo.md(
         r"""
@@ -118,12 +121,6 @@ def _():
     START_YEAR = 1980
     END_YEAR = 2025
     return DAILY_FILES, END_YEAR, RETROSHEET_DIR, START_YEAR
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""#### Batting Stats""")
-    return
 
 
 @app.cell
@@ -391,6 +388,37 @@ def _():
 def _(mo):
     mo.md(
         r"""
+    ### Add Columns and Fields to DataFrame
+
+    * Add the column headers to the DataFrame
+    * Add `datetime` as a parsed version of the games' `date` for easier compairision and graphing
+    * Add a `game_id` for a consistent way to reference a game, includes:
+        * `date` - The game date
+        * `game_num` - Used for doubleheader games
+        * `home_team` - The home team
+        * `visiting_team` - The visiting team
+    """
+    )
+    return
+
+
+@app.cell
+def _(ALL_SEASONS_DF, GAMELOG_COLUMNS, pd):
+    ## Add Columns to dataframe
+    ALL_SEASONS_DF.columns = [*GAMELOG_COLUMNS, *['season']]
+    ALL_SEASONS_DF['datetime'] = pd.to_datetime(ALL_SEASONS_DF['date'], format='%Y%m%d')
+    ALL_SEASONS_DF['game_id'] = (ALL_SEASONS_DF["date"].astype(str)
+                                 + "_"
+                                 + ALL_SEASONS_DF["game_num"].astype(str)
+                                 + "_" + ALL_SEASONS_DF["home_team"]
+                                 + "_" + ALL_SEASONS_DF["visiting_team"])
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(
+        r"""
     ### Drop columns that we don't need
 
     Out model doesn't currently include any information about position players, so remove it from the DataFrame
@@ -422,37 +450,6 @@ def _(ALL_SEASONS_DF):
         'home_9_id', 'home_9_name', 'home_9_pos',
         'misc', 'acquisition_info'
     ], axis=1, inplace=True)
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(
-        r"""
-    ### Add Columns and Fields to DataFrame
-
-    * Add the column headers to the DataFrame
-    * Add `datetime` as a parsed version of the games' `date` for easier compairision and graphing
-    * Add a `game_id` for a consistent way to reference a game, includes:
-        * `date` - The game date
-        * `game_num` - Used for doubleheader games
-        * `home_team` - The home team
-        * `visiting_team` - The visiting team
-    """
-    )
-    return
-
-
-@app.cell
-def _(ALL_SEASONS_DF, GAMELOG_COLUMNS, pd):
-    ## Add Columns to dataframe
-    ALL_SEASONS_DF.columns = [*GAMELOG_COLUMNS, *['season']]
-    ALL_SEASONS_DF['datetime'] = pd.to_datetime(ALL_SEASONS_DF['date'], format='%Y%m%d')
-    ALL_SEASONS_DF['game_id'] = (ALL_SEASONS_DF["date"].astype(str)
-                                 + "_"
-                                 + ALL_SEASONS_DF["game_num"].astype(str)
-                                 + "_" + ALL_SEASONS_DF["home_team"]
-                                 + "_" + ALL_SEASONS_DF["visiting_team"])
     return
 
 
@@ -504,6 +501,12 @@ def _(mo):
 def _(ALL_SEASONS_DF, np):
     ALL_SEASONS_DF['home_win'] = np.where(ALL_SEASONS_DF['home_score'] > ALL_SEASONS_DF['visiting_score'], 1, 0)
     ALL_SEASONS_DF['visiting_win'] = np.where(ALL_SEASONS_DF['home_score'] > ALL_SEASONS_DF['visiting_score'], 0, 1)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""#### Batting Stats""")
     return
 
 
@@ -927,6 +930,18 @@ def _(PITCHING_DF, PITCHING_PERIODS, PITCHING_STATS):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""### Data Exploration""")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""#### Compare Pitching Statistics for Selected Pitchers""")
+    return
+
+
+@app.cell
 def _(ALL_PITCHING_STATS, END_YEAR, PITCHING_DF, PLAYERS_DF, START_YEAR, mo):
     _pitchers = PLAYERS_DF.loc[PITCHING_DF['person.key'].unique()].copy()
     _pitchers['NAME'] = _pitchers['NICKNAME'] + " " + _pitchers['LAST'] + " (" + _pitchers.index + ")"
@@ -934,8 +949,11 @@ def _(ALL_PITCHING_STATS, END_YEAR, PITCHING_DF, PLAYERS_DF, START_YEAR, mo):
     PITCHERS_LIST = _pitchers['NAME'].to_dict()
     PITCHERS_LIST_REVERSED = {v: k for k, v in PITCHERS_LIST.items()}
 
-    pitchers_multiselect = mo.ui.multiselect(options=PITCHERS_LIST_REVERSED, max_selections=5)
-    pitching_stats_dropdown = mo.ui.dropdown(options=ALL_PITCHING_STATS, value=ALL_PITCHING_STATS[0], searchable=True)
+    _default_pitcher_ids = ['imans001', 'kersc001', 'salec001', 'skenp001']
+    _default_list = {k: v for k, v in PITCHERS_LIST_REVERSED.items() if v in _default_pitcher_ids}
+
+    pitchers_multiselect = mo.ui.multiselect(options=PITCHERS_LIST_REVERSED, max_selections=5, value=_default_list)
+    pitching_stats_dropdown = mo.ui.dropdown(options=ALL_PITCHING_STATS, value=ALL_PITCHING_STATS[-1], searchable=True)
 
     start_season_dropdown = mo.ui.dropdown(options=range(START_YEAR, END_YEAR), value=END_YEAR - 1)
     end_season_dropdown = mo.ui.dropdown(options=range(START_YEAR, END_YEAR), value=END_YEAR - 1)
@@ -946,18 +964,6 @@ def _(ALL_PITCHING_STATS, END_YEAR, PITCHING_DF, PLAYERS_DF, START_YEAR, mo):
         pitching_stats_dropdown,
         start_season_dropdown,
     )
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""### Data Exploration""")
-    return
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""#### Compare Pitching Statistics for Selected Pitchers""")
-    return
 
 
 @app.cell
@@ -1808,6 +1814,11 @@ def _(
         ], justify="start"),
         mo.ui.plotly(_figure)
     ])
+    return
+
+
+@app.cell
+def _():
     return
 
 
