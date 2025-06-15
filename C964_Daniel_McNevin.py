@@ -69,22 +69,16 @@ def _():
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
     return (
-        CalibrationDisplay,
-        ConfusionMatrixDisplay,
         LogisticRegression,
-        PrecisionRecallDisplay,
-        RocCurveDisplay,
         StandardScaler,
         classification_report,
+        confusion_matrix,
         go,
-        io,
         make_pipeline,
         mo,
         np,
         pd,
-        plt,
         px,
-        sns,
         train_test_split,
     )
 
@@ -1309,15 +1303,28 @@ def _(mo):
 
 
 @app.cell
-def _(ConfusionMatrixDisplay, PIPELINE, io, mo, plt, x_test, y_test):
-    _fig, _ax = plt.subplots()
-    ConfusionMatrixDisplay.from_estimator(PIPELINE, x_test, y_test, ax=_ax)
+def _(confusion_matrix, mo, predictions, y_test):
+    import plotly.figure_factory as ff
 
-    _buffer = io.BytesIO()
-    _fig.savefig(_buffer, format='png')
-    _buffer.seek(0)
+    _matrix = confusion_matrix(y_test, predictions)
 
-    mo.image(_buffer)
+    _labels = ['Loss', 'Win']
+
+    _fig = ff.create_annotated_heatmap(
+        z=_matrix,
+        x=_labels,
+        y=_labels,
+        annotation_text=_matrix,
+        colorscale='Blues'
+    )
+
+    _fig.update_layout(
+        title='Confusion Matrix',
+        xaxis_title='Predicted',
+        yaxis_title='Actual'
+    )
+
+    mo.ui.plotly(_fig)
     return
 
 
@@ -1334,15 +1341,38 @@ def _(mo):
 
 
 @app.cell
-def _(PIPELINE, RocCurveDisplay, io, mo, plt, x_test, y_test):
-    _fig, _ax = plt.subplots()
-    RocCurveDisplay.from_estimator(PIPELINE, x_test, y_test, ax=_ax)
+def _(PIPELINE, go, mo, x_test, y_test):
+    from sklearn.metrics import roc_curve, roc_auc_score
 
-    _buffer = io.BytesIO()
-    _fig.savefig(_buffer, format='png')
-    _buffer.seek(0)
+    _probs = PIPELINE.predict_proba(x_test)[:, 1]
 
-    mo.image(_buffer)
+    _fpr, _tpr, _ = roc_curve(y_test, _probs)
+    _auc = roc_auc_score(y_test, _probs)
+
+    _fig = go.Figure([
+        go.Scatter(
+            x=_fpr,
+            y=_tpr,
+            mode='lines',
+            name=f'Model (AUC = {_auc:.2f})'
+        )
+    ])
+
+    _fig.add_trace(go.Scatter(
+        x=[0, 1],
+        y=[0, 1],
+        mode='lines',
+        name='Random',
+        line=dict(dash='dash')
+    ))
+
+    _fig.update_layout(
+        title='ROC Curve',
+        xaxis_title='False Positive Rate',
+        yaxis_title='True Positive Rate'
+    )
+
+    mo.ui.plotly(_fig)
     return
 
 
@@ -1353,15 +1383,20 @@ def _(mo):
 
 
 @app.cell
-def _(PIPELINE, PrecisionRecallDisplay, io, mo, plt, x_test, y_test):
-    _fig, _ax = plt.subplots()
-    PrecisionRecallDisplay.from_estimator(PIPELINE, x_test, y_test, ax=_ax)
+def _(PIPELINE, go, mo, x_test, y_test):
+    from sklearn.metrics import precision_recall_curve, average_precision_score
 
-    _buffer = io.BytesIO()
-    _fig.savefig(_buffer, format='png')
-    _buffer.seek(0)
+    _probs = PIPELINE.predict_proba(x_test)[:, 1]
+    _precision, _recall, _ = precision_recall_curve(y_test, _probs)
+    _ap = average_precision_score(y_test, _probs)
 
-    mo.image(_buffer)
+    _fig = go.Figure([
+        go.Scatter(x=_recall, y=_precision, mode='lines', name=f'model (AP = {_ap:.2f})')
+    ])
+
+    _fig.update_layout(title='Precision-Recall Curve', xaxis_title='Recall', yaxis_title='Precision')
+
+    mo.ui.plotly(_fig)
     return
 
 
@@ -1372,15 +1407,20 @@ def _(mo):
 
 
 @app.cell
-def _(CalibrationDisplay, PIPELINE, io, mo, plt, x_test, y_test):
-    _fig, _ax = plt.subplots()
-    CalibrationDisplay.from_estimator(PIPELINE, x_test, y_test, ax=_ax)
+def _(PIPELINE, go, mo, x_test, y_test):
+    from sklearn.calibration import calibration_curve
 
-    _buffer = io.BytesIO()
-    _fig.savefig(_buffer, format='png')
-    _buffer.seek(0)
+    _probs = PIPELINE.predict_proba(x_test)[:, 1]
+    _fraction, _mean = calibration_curve(y_test, _probs, n_bins=10)
 
-    mo.image(_buffer)
+    _fig = go.Figure([
+        go.Scatter(x=_mean, y=_fraction, mode='lines+markers', name='Model'),
+        go.Scatter(x=[0, 1], y=[0, 1], mode='lines', name='Perfect Calibration', line=dict(dash='dash'))
+    ])
+
+    _fig.update_layout(title='Calibration Curve', xaxis_title='Mean PredictedProbability', yaxis_title='Fraction of Positives')
+
+    mo.ui.plotly(_fig)
     return
 
 
@@ -1391,12 +1431,20 @@ def _(mo):
 
 
 @app.cell
-def _(PIPELINE, plt, x_test):
-    y_proba = PIPELINE.predict_proba(x_test)[:, 1]
-    plt.hist(y_proba, bins=20)
-    plt.xlabel('Predicted Probability for Class 1')
-    plt.ylabel('Frequency')
-    plt.title('Histogram of Predicted Probabilities')
+def _(PIPELINE, go, mo, x_test):
+    _y_proba = PIPELINE.predict_proba(x_test)[:, 1]
+
+    _fig = go.Figure(data=[
+        go.Histogram(x=_y_proba, nbinsx=50)
+    ])
+
+    _fig.update_layout(
+        title='Histogram of Predicted Probabilities',
+        xaxis_title='Predicted Probability for Win',
+        yaxis_title='Frequency'
+    )
+
+    mo.ui.plotly(_fig)
     return
 
 
@@ -1407,16 +1455,25 @@ def _(mo):
 
 
 @app.cell
-def _(LOGMODEL, pd, plt, x_train):
+def _(LOGMODEL, go, mo, pd, x_train):
     _coefficients = pd.Series(LOGMODEL.coef_[0], index=x_train.columns)
+    _coeff_abs_sorted = _coefficients.abs().sort_values(ascending=True)  # ascending=True for horizontal bar from bottom
 
-    _fig, _ax = plt.subplots(figsize=(10, 8))
-    _coefficients.abs().sort_values(ascending=False).plot(kind='barh', ax=_ax, title='Feature Impact')
-    _ax.set_xlabel("Absolute Coefficient Value (Impact)")
-    _ax.invert_yaxis()
-    _fig.tight_layout()
+    _fig = go.Figure(go.Bar(
+        x=_coeff_abs_sorted.values,
+        y=_coeff_abs_sorted.index,
+        orientation='h'
+    ))
 
-    _fig
+    _fig.update_layout(
+        title='Feature Impact',
+        xaxis_title='Absolute Coefficient Value (Impact)',
+        yaxis=dict(autorange='reversed'),
+        height=600,
+        margin=dict(l=120, r=40, t=50, b=50)
+    )
+
+    mo.ui.plotly(_fig)
     return
 
 
@@ -1427,18 +1484,26 @@ def _(mo):
 
 
 @app.cell
-def _(TRAINER_DF, TRAINING_FIELDS, plt):
+def _(TRAINER_DF, TRAINING_FIELDS, go, mo):
     _correlations = TRAINER_DF[TRAINING_FIELDS].corr()
-
     _target = 'home_win'
-    _correlations_target = _correlations[_target].drop(_target).sort_values()
+    _correlations_target = _correlations[_target].drop(_target).sort_values(ascending=False)  # descending for biggest on top
 
-    _fig, _ax = plt.subplots(figsize=(10, 8))
-    _correlations_target.plot(kind='barh', ax=_ax, title='Correlation with Target: home_win')
-    _ax.set_xlabel("Correlation")
-    _fig.tight_layout()
+    _fig = go.Figure(go.Bar(
+        x=_correlations_target.values,
+        y=_correlations_target.index,
+        orientation='h'
+    ))
 
-    _fig 
+    _fig.update_layout(
+        title='Correlation with Target: home_win',
+        xaxis_title='Correlation',
+        yaxis=dict(autorange='reversed'),
+        height=600,
+        margin=dict(l=140, r=40, t=50, b=50)
+    )
+
+    mo.ui.plotly(_fig)
     return
 
 
@@ -1449,8 +1514,24 @@ def _(mo):
 
 
 @app.cell
-def _(TRAINER_DF, sns):
-    sns.heatmap(TRAINER_DF.corr(), cmap='coolwarm', annot=True)
+def _(TRAINER_DF, mo, px):
+    _corr = TRAINER_DF.corr()
+
+    _fig = px.imshow(
+        _corr,
+        color_continuous_scale='RdBu_r',
+        zmin=-1, zmax=1,
+        text_auto=True,
+        aspect='auto',
+        title='Correlation Heatmap'
+    )
+
+    _fig.update_layout(
+        margin=dict(l=40, r=40, t=50, b=40),
+        coloraxis_colorbar=dict(title='Correlation')
+    )
+
+    mo.ui.plotly(_fig)
     return
 
 
@@ -1461,17 +1542,26 @@ def _(mo):
 
 
 @app.cell
-def _(MERGED_DF_WITH_PITCHING_FINAL, plt, sns):
+def _(MERGED_DF_WITH_PITCHING_FINAL, go, mo):
     _training_df = MERGED_DF_WITH_PITCHING_FINAL.copy()
 
-    _fig, _ax = plt.subplots()
-    sns.countplot(x='home_win', data=_training_df, ax=_ax)
-    _ax.set_title('Class Distribution: home_win')
-    _ax.set_xlabel('Home Win (1 = win, 0 = loss)')
-    _ax.set_ylabel('Count')
-    _fig.tight_layout()
+    _counts = _training_df['home_win'].value_counts().sort_index()
 
-    _fig
+    _fig = go.Figure(go.Bar(
+        x=[str(i) for i in _counts.index],
+        y=_counts.values,
+        text=_counts.values,
+        textposition='auto'
+    ))
+
+    _fig.update_layout(
+        title='Class Distribution: home_win',
+        xaxis_title='Home Win (1 = win, 0 = loss)',
+        yaxis_title='Count',
+        bargap=0.2
+    )
+
+    mo.ui.plotly(_fig)
     return
 
 
