@@ -1272,6 +1272,12 @@ def _(mo):
 
 
 @app.cell
+def _():
+    MODEL_METRICS = {}
+    return (MODEL_METRICS,)
+
+
+@app.cell
 def _(mo):
     mo.md(
         r"""
@@ -1284,9 +1290,8 @@ def _(mo):
 
 
 @app.cell
-def _(classification_report, mo, pd, predictions, y_test):
-    _report_df = pd.DataFrame(classification_report(y_test, predictions, output_dict=True)).transpose()
-    mo.md(_report_df.to_markdown())
+def _(classification_report, pd, predictions, y_test):
+    pd.DataFrame(classification_report(y_test, predictions, output_dict=True)).transpose()
     return
 
 
@@ -1303,19 +1308,26 @@ def _(mo):
 
 
 @app.cell
-def _(confusion_matrix, mo, predictions, y_test):
+def _(MODEL_METRICS, confusion_matrix, mo, predictions, y_test):
     import plotly.figure_factory as ff
 
     _matrix = confusion_matrix(y_test, predictions)
-
     _labels = ['Loss', 'Win']
+
+    # Define quadrant labels matching the confusion matrix cells
+    _quadrants = [['True Negative', 'False Positive'],
+                  ['False Negative', 'True Positive']]
+
+    # Convert to list of lists of strings for annotations combining count and label
+    _annotation_text = [[f"{_quadrants[i][j]}<br>{_matrix[i][j]}" for j in range(2)] for i in range(2)]
 
     _fig = ff.create_annotated_heatmap(
         z=_matrix,
         x=_labels,
         y=_labels,
-        annotation_text=_matrix,
-        colorscale='Blues'
+        annotation_text=_annotation_text,
+        colorscale='Blues',
+        hoverinfo="z"
     )
 
     _fig.update_layout(
@@ -1324,7 +1336,7 @@ def _(confusion_matrix, mo, predictions, y_test):
         yaxis_title='Actual'
     )
 
-    mo.ui.plotly(_fig)
+    MODEL_METRICS["Confusion"] = mo.ui.plotly(_fig)
     return
 
 
@@ -1341,7 +1353,7 @@ def _(mo):
 
 
 @app.cell
-def _(PIPELINE, go, mo, x_test, y_test):
+def _(MODEL_METRICS, PIPELINE, go, mo, x_test, y_test):
     from sklearn.metrics import roc_curve, roc_auc_score
 
     _probs = PIPELINE.predict_proba(x_test)[:, 1]
@@ -1372,7 +1384,7 @@ def _(PIPELINE, go, mo, x_test, y_test):
         yaxis_title='True Positive Rate'
     )
 
-    mo.ui.plotly(_fig)
+    MODEL_METRICS["ROC"] = mo.ui.plotly(_fig)
     return
 
 
@@ -1383,7 +1395,7 @@ def _(mo):
 
 
 @app.cell
-def _(PIPELINE, go, mo, x_test, y_test):
+def _(MODEL_METRICS, PIPELINE, go, mo, x_test, y_test):
     from sklearn.metrics import precision_recall_curve, average_precision_score
 
     _probs = PIPELINE.predict_proba(x_test)[:, 1]
@@ -1396,7 +1408,7 @@ def _(PIPELINE, go, mo, x_test, y_test):
 
     _fig.update_layout(title='Precision-Recall Curve', xaxis_title='Recall', yaxis_title='Precision')
 
-    mo.ui.plotly(_fig)
+    MODEL_METRICS["Recall"] = mo.ui.plotly(_fig)
     return
 
 
@@ -1407,7 +1419,7 @@ def _(mo):
 
 
 @app.cell
-def _(PIPELINE, go, mo, x_test, y_test):
+def _(MODEL_METRICS, PIPELINE, go, mo, x_test, y_test):
     from sklearn.calibration import calibration_curve
 
     _probs = PIPELINE.predict_proba(x_test)[:, 1]
@@ -1420,7 +1432,7 @@ def _(PIPELINE, go, mo, x_test, y_test):
 
     _fig.update_layout(title='Calibration Curve', xaxis_title='Mean PredictedProbability', yaxis_title='Fraction of Positives')
 
-    mo.ui.plotly(_fig)
+    MODEL_METRICS["Calibration"] = mo.ui.plotly(_fig)
     return
 
 
@@ -1431,7 +1443,7 @@ def _(mo):
 
 
 @app.cell
-def _(PIPELINE, go, mo, x_test):
+def _(MODEL_METRICS, PIPELINE, go, mo, x_test):
     _y_proba = PIPELINE.predict_proba(x_test)[:, 1]
 
     _fig = go.Figure(data=[
@@ -1444,7 +1456,7 @@ def _(PIPELINE, go, mo, x_test):
         yaxis_title='Frequency'
     )
 
-    mo.ui.plotly(_fig)
+    MODEL_METRICS["Predictions"] = mo.ui.plotly(_fig)
     return
 
 
@@ -1455,7 +1467,7 @@ def _(mo):
 
 
 @app.cell
-def _(LOGMODEL, go, mo, pd, x_train):
+def _(LOGMODEL, MODEL_METRICS, go, mo, pd, x_train):
     _coefficients = pd.Series(LOGMODEL.coef_[0], index=x_train.columns)
     _coeff_abs_sorted = _coefficients.abs().sort_values(ascending=True)  # ascending=True for horizontal bar from bottom
 
@@ -1473,7 +1485,7 @@ def _(LOGMODEL, go, mo, pd, x_train):
         margin=dict(l=120, r=40, t=50, b=50)
     )
 
-    mo.ui.plotly(_fig)
+    MODEL_METRICS["Feature Impact"] = mo.ui.plotly(_fig)
     return
 
 
@@ -1484,7 +1496,7 @@ def _(mo):
 
 
 @app.cell
-def _(TRAINER_DF, TRAINING_FIELDS, go, mo):
+def _(MODEL_METRICS, TRAINER_DF, TRAINING_FIELDS, go, mo):
     _correlations = TRAINER_DF[TRAINING_FIELDS].corr()
     _target = 'home_win'
     _correlations_target = _correlations[_target].drop(_target).sort_values(ascending=False)  # descending for biggest on top
@@ -1503,7 +1515,7 @@ def _(TRAINER_DF, TRAINING_FIELDS, go, mo):
         margin=dict(l=140, r=40, t=50, b=50)
     )
 
-    mo.ui.plotly(_fig)
+    MODEL_METRICS["Feature Correlation"] = mo.ui.plotly(_fig)
     return
 
 
@@ -1514,7 +1526,7 @@ def _(mo):
 
 
 @app.cell
-def _(TRAINER_DF, mo, px):
+def _(MODEL_METRICS, TRAINER_DF, mo, px):
     _corr = TRAINER_DF.corr()
 
     _fig = px.imshow(
@@ -1531,7 +1543,7 @@ def _(TRAINER_DF, mo, px):
         coloraxis_colorbar=dict(title='Correlation')
     )
 
-    mo.ui.plotly(_fig)
+    MODEL_METRICS["Heatmap"] = mo.ui.plotly(_fig)
     return
 
 
@@ -1542,7 +1554,7 @@ def _(mo):
 
 
 @app.cell
-def _(MERGED_DF_WITH_PITCHING_FINAL, go, mo):
+def _(MERGED_DF_WITH_PITCHING_FINAL, MODEL_METRICS, go, mo):
     _training_df = MERGED_DF_WITH_PITCHING_FINAL.copy()
 
     _counts = _training_df['home_win'].value_counts().sort_index()
@@ -1561,7 +1573,13 @@ def _(MERGED_DF_WITH_PITCHING_FINAL, go, mo):
         bargap=0.2
     )
 
-    mo.ui.plotly(_fig)
+    MODEL_METRICS["Prediction Class"] = mo.ui.plotly(_fig)
+    return
+
+
+@app.cell
+def _(MODEL_METRICS, mo):
+    mo.ui.tabs(MODEL_METRICS)
     return
 
 
