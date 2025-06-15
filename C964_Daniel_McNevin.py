@@ -689,9 +689,22 @@ def _(ALL_BATTING_STATS, TEAMS_LIST_REVERSED, mo):
 
 
 @app.cell
-def _(TEAM_DATA, mo, px, season_batting_stats_dropdown, season_teams_dropdown):
+def _(
+    TEAMS_LIST,
+    TEAM_DATA,
+    mo,
+    px,
+    season_batting_stats_dropdown,
+    season_teams_dropdown,
+):
     _df = TEAM_DATA[season_teams_dropdown.value].groupby('season')[season_batting_stats_dropdown.value].mean().reset_index()
-    _plot = px.line(_df, x='season', y=season_batting_stats_dropdown.value, title=f"Mean {season_batting_stats_dropdown.value} Per Season for {season_batting_stats_dropdown.value}")
+
+    _plot = px.line(
+        _df, 
+        x='season', 
+        y=season_batting_stats_dropdown.value, 
+        title=f"{TEAMS_LIST[season_teams_dropdown.value]} :: Mean {season_batting_stats_dropdown.value} Per Season"
+    )
 
     mo.vstack([
         mo.hstack([
@@ -721,6 +734,7 @@ def _(
     TEAM_DATA_DF,
     mo,
     px,
+    season_batting_stats_dropdown,
     teams_batting_stats_dropdown,
     teams_multi_dropdown,
 ):
@@ -729,7 +743,8 @@ def _(
         x='datetime',
         y=teams_batting_stats_dropdown.value,
         color='team_team',
-        markers=False
+        markers=False,
+        title=f"Teams {season_batting_stats_dropdown.value}"
     )
 
     mo.vstack([
@@ -990,6 +1005,7 @@ def _(ALL_PITCHING_STATS, END_YEAR, START_YEAR, TEAMS_LIST_REVERSED, mo):
 @app.cell
 def _(
     PITCHING_DF,
+    TEAMS_LIST,
     get_player_name,
     mo,
     px,
@@ -1009,7 +1025,7 @@ def _(
         y=team_pitching_stats_dropdown.value,
         color='player_name',
         markers=False,
-        title=f"{team_pitching_stats_dropdown.value} ({team_pitching_start_season_dropdown.value} - {team_pitching_end_season_dropdown.value})"
+        title=f"{TEAMS_LIST[team_pitching_teams_dropdown.value]} :: {team_pitching_stats_dropdown.value} ({team_pitching_start_season_dropdown.value} - {team_pitching_end_season_dropdown.value})"
     )
 
     mo.vstack([
@@ -1579,9 +1595,25 @@ def _(mo):
 @app.cell
 def _(TEAMS_LIST_REVERSED, mo):
     prediction_home_team_dropdown = mo.ui.dropdown(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[0], searchable=True)
+    return (prediction_home_team_dropdown,)
 
-    prediction_away_team_dropdown = mo.ui.dropdown(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[1], searchable=True)
-    return prediction_away_team_dropdown, prediction_home_team_dropdown
+
+@app.cell
+def _(TEAMS_LIST_REVERSED, mo, prediction_home_team_dropdown):
+    ## All teams except the selected home team
+    _teams_list = {k: v for k, v in TEAMS_LIST_REVERSED.items() if v not in [prediction_home_team_dropdown.value]}
+
+    prediction_away_team_dropdown = mo.ui.dropdown(options=_teams_list, value=list(_teams_list.keys())[1], searchable=True)
+    return (prediction_away_team_dropdown,)
+
+
+@app.function
+def pitchers_list(team_name, season, pitching_df, pitchers_list_df):
+    pitchers = pitching_df[(pitching_df['team.key'] == team_name) & (pitching_df['season'] == season)].dropna()['person.key'].to_list()
+    _pitchers_list = {k: pitchers_list_df[k] for k in pitchers if k in pitchers_list_df}
+    _pitchers_list_reversed = {v: k for k, v in _pitchers_list.items()}
+
+    return _pitchers_list, _pitchers_list_reversed
 
 
 @app.cell
@@ -1592,23 +1624,28 @@ def _(
     prediction_away_team_dropdown,
     prediction_home_team_dropdown,
 ):
-    _home_pitchers = PITCHING_DF[(PITCHING_DF['team.key'] == prediction_home_team_dropdown.value) & (PITCHING_DF['season'] == 2024)].dropna()['person.key'].to_list()
-    home_pitchers_list = {k: PITCHERS_LIST[k] for k in _home_pitchers if k in PITCHERS_LIST}
-    home_pitchers_list_reversed = {v: k for k, v in home_pitchers_list.items()}
+    _season = 2024
+
+    ## Home
+    home_pitchers_list, home_pitchers_list_reversed = pitchers_list(
+        prediction_home_team_dropdown.value,
+        _season,
+        PITCHING_DF,
+        PITCHERS_LIST
+    )
 
     prediction_home_pitcher_dropdown = mo.ui.dropdown(options=home_pitchers_list_reversed, value=list(home_pitchers_list_reversed.keys())[1], searchable=True)
 
-    _away_pitchers = PITCHING_DF[(PITCHING_DF['team.key'] == prediction_away_team_dropdown.value) & (PITCHING_DF['season'] == 2024)].dropna()['person.key'].to_list()
-    away_pitchers_list = {k: PITCHERS_LIST[k] for k in _away_pitchers if k in PITCHERS_LIST}
-    away_pitchers_list_reversed = {v: k for k, v in away_pitchers_list.items()}
+    ## Away
+    away_pitchers_list, away_pitchers_list_reversed = pitchers_list(
+        prediction_away_team_dropdown.value,
+        _season,
+        PITCHING_DF,
+        PITCHERS_LIST
+    )
 
     prediction_away_pitcher_dropdown = mo.ui.dropdown(options=away_pitchers_list_reversed, value=list(away_pitchers_list_reversed.keys())[1], searchable=True)
-    return (
-        away_pitchers_list,
-        home_pitchers_list,
-        prediction_away_pitcher_dropdown,
-        prediction_home_pitcher_dropdown,
-    )
+    return prediction_away_pitcher_dropdown, prediction_home_pitcher_dropdown
 
 
 @app.cell
@@ -1640,37 +1677,43 @@ def _(
             showlegend=False
         ),
 
-        go.Scatter(
-            x=[_home_team_win * 100],
-            y=[0],
-            mode='markers',
-            marker=dict(size=12, color='red'),
-            name=f"{TEAMS_LIST[prediction_home_team_dropdown.value]} {_home_team_win * 100:.2f}%"),
+        ## Home Team
         go.Scatter(
             x=[_away_team_win * 100],
             y=[0],
             mode='markers',
             marker=dict(size=12, color='blue'),
             name=f"{TEAMS_LIST[prediction_away_team_dropdown.value]} {_away_team_win * 100:.2f}%"),
+
+        ## Away Team
+        go.Scatter(
+            x=[_home_team_win * 100],
+            y=[0],
+            mode='markers',
+            marker=dict(size=12, color='red'),
+            name=f"{TEAMS_LIST[prediction_home_team_dropdown.value]} {_home_team_win * 100:.2f}%"),
+
     ])
 
     _fig.update_layout(
         xaxis_range=[0, 100],
         xaxis_title='Prediction Confidence (%)',
         yaxis_visible=False,
-        title='Win Probability',
+        title=f'{TEAMS_LIST[prediction_away_team_dropdown.value]} at {TEAMS_LIST[prediction_home_team_dropdown.value]} Win Probability',
         height=300
     )
 
     mo.vstack([
         mo.hstack([
             mo.vstack([
-                prediction_home_team_dropdown,     
-                prediction_home_pitcher_dropdown
-            ]),
-            mo.vstack([
+                mo.md("### Away"),
                 prediction_away_team_dropdown,
                 prediction_away_pitcher_dropdown
+            ]),
+            mo.vstack([
+                mo.md("### Home"),
+                prediction_home_team_dropdown,     
+                prediction_home_pitcher_dropdown
             ]),
         ], justify="start"),
         mo.ui.plotly(_fig)
@@ -1700,7 +1743,6 @@ def _(PIPELINE, PLAYERS_DF, pd, predict_game):
                 away_pitcher_name = PLAYERS_DF.loc[a_pitcher]['LAST']
                 home_prob, away_prob = predict_game(PIPELINE, home_team, h_pitcher, away_team, a_pitcher)
                 row[away_pitcher_name] = home_prob * 100
-                print(".", end="")
             home_pitcher_name = PLAYERS_DF.loc[h_pitcher]['LAST']
             results.append(pd.Series(row, name=home_pitcher_name))
 
@@ -1745,25 +1787,53 @@ def _(create_pitching_prediction_dataframe, px):
 
 @app.cell
 def _(TEAMS_LIST_REVERSED, mo):
+    ## Home
     all_pitchers_home_team_dropdown = mo.ui.dropdown(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[0], searchable=True)
 
+    ## Away
     all_pitchers_away_team_dropdown = mo.ui.dropdown(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[1], searchable=True)
     return all_pitchers_away_team_dropdown, all_pitchers_home_team_dropdown
 
 
 @app.cell
 def _(
+    PITCHERS_LIST,
+    PITCHING_DF,
     all_pitchers_away_team_dropdown,
     all_pitchers_home_team_dropdown,
-    away_pitchers_list,
+):
+    _season = 2024
+
+    all_pitchers_home_pitchers_list, all_pitchers_home_pitchers_list_reversed = pitchers_list(
+        all_pitchers_home_team_dropdown.value,
+        _season,
+        PITCHING_DF,
+        PITCHERS_LIST
+    )
+
+    all_pitchers_away_pitchers_list, all_pitchers_away_pitchers_list_reversed = pitchers_list(
+        all_pitchers_away_team_dropdown.value,
+        _season,
+        PITCHING_DF,
+        PITCHERS_LIST
+    )
+    return all_pitchers_away_pitchers_list, all_pitchers_home_pitchers_list
+
+
+@app.cell
+def _(
+    TEAMS_LIST,
+    all_pitchers_away_pitchers_list,
+    all_pitchers_away_team_dropdown,
+    all_pitchers_home_pitchers_list,
+    all_pitchers_home_team_dropdown,
     create_pitching_prediction_dataframe,
-    home_pitchers_list,
     mo,
     px,
 ):
     _team_data = {}
-    _team_data[all_pitchers_home_team_dropdown.value] = home_pitchers_list.keys()
-    _team_data[all_pitchers_away_team_dropdown.value] = away_pitchers_list.keys()
+    _team_data[all_pitchers_home_team_dropdown.value] = all_pitchers_home_pitchers_list.keys()
+    _team_data[all_pitchers_away_team_dropdown.value] = all_pitchers_away_pitchers_list.keys()
 
     _home_team = all_pitchers_home_team_dropdown.value
     _away_team = all_pitchers_away_team_dropdown.value
@@ -1784,9 +1854,9 @@ def _(
     )
 
     _figure.update_layout(
-        title=f"{_home_team} Win Probability vs {_away_team} Pitchers",
-        xaxis_title=_away_team,
-        yaxis_title=_home_team,
+        title=f"{TEAMS_LIST[_away_team]} at {TEAMS_LIST[_home_team]} Win Probability by Pitcher",
+        xaxis_title=f"{TEAMS_LIST[_away_team]}",
+        yaxis_title=f"{TEAMS_LIST[_home_team]}",
         coloraxis_colorbar=dict(title="Win %"),
         yaxis=dict(autorange='reversed'),
         height=800
@@ -1795,16 +1865,17 @@ def _(
 
     mo.vstack([
         mo.hstack([
-            all_pitchers_home_team_dropdown,     
-            all_pitchers_away_team_dropdown
+            mo.vstack([
+                mo.md("### Away"),
+                all_pitchers_away_team_dropdown
+            ]),
+            mo.vstack([
+                mo.md("### Home"),
+                all_pitchers_home_team_dropdown
+            ]),        
         ], justify="start"),
         mo.ui.plotly(_figure)
     ])
-    return
-
-
-@app.cell
-def _():
     return
 
 
