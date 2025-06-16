@@ -10,3 +10,4 @@ ruff
 scikit-learn
 seaborn
 tabulate
+pyarrow
