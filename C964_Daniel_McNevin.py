@@ -884,15 +884,21 @@ def _(DAILY_FILES, END_YEAR, START_YEAR, mo, pd):
             _season['season'] = year
             _season['game.datetime'] = pd.to_datetime(_season['game.date'], format='%Y-%m-%d')
 
+            is_event_data = _season['game.source'] == 'evt'
+            is_regular_season = _season['season.phase'] == 'R'
+            has_faced_batters = _season['P_TBF'] > 0
+            is_starting_pitcher = _season['seq'] == 1
+
             ## Filter for only pitchers and remove batting and fielding data
-            year_pitching_data = _season[
-                                     ## Events
-                                     (_season['game.source'] == 'evt')
-                                     ## Regular Season
-                                     & (_season['season.phase'] == 'R')
-                                     ## Total batters faced is more than 0
-                                     & (_season['P_TBF'] > 0)
-                                     ].loc[:,~(_season.columns.str.startswith('B_') | _season.columns.str.startswith('F_'))].copy()
+            columns_to_keep = [
+                col for col in _season.columns
+                if not (col.startswith('B_') or col.startswith('F_'))
+            ]
+        
+            year_pitching_data = _season.loc[
+                is_event_data & is_regular_season & has_faced_batters & is_starting_pitcher,
+                columns_to_keep
+            ].copy()
 
             _dfs.append(year_pitching_data)
 
