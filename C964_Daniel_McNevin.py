@@ -101,8 +101,13 @@ def _():
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
     from sklearn.metrics import roc_curve, roc_auc_score
+
+    PANDAS_CSV_ENGINE = 'pyarrow'
+    PANDAS_CSV_DTYPE_BACKEND = 'pyarrow'
     return (
         LogisticRegression,
+        PANDAS_CSV_DTYPE_BACKEND,
+        PANDAS_CSV_ENGINE,
         StandardScaler,
         average_precision_score,
         calibration_curve,
@@ -159,7 +164,7 @@ def _(mo):
     ]
 
     BATTING_PERIODS = [
-        5,
+        # 5,
         20,
         100,
         162,
@@ -214,14 +219,14 @@ def _():
     ]
 
     PITCHING_PERIODS = [
-        5,
+        # 5,
         20,
     ]
 
     PITCHING_STAT_MAPPER = {
-        'P_ERA_5': "starting_pitcher_era_5",
+        # 'P_ERA_5': "starting_pitcher_era_5",
         'P_ERA_20': "starting_pitcher_era_20",
-        'P_WHIP_5': "starting_pitcher_whip_5",
+        # 'P_WHIP_5': "starting_pitcher_whip_5",
         'P_WHIP_20': "starting_pitcher_whip_20",
     }
 
@@ -240,8 +245,12 @@ def _():
 
 
 @app.cell
-def _(RETROSHEET_DIR, pd):
-    TEAMS_DF = pd.read_csv(f"{RETROSHEET_DIR}/reference/teams.csv.zip")
+def _(PANDAS_CSV_DTYPE_BACKEND, PANDAS_CSV_ENGINE, RETROSHEET_DIR, pd):
+    TEAMS_DF = pd.read_csv(
+        f"{RETROSHEET_DIR}/reference/teams.csv.zip", 
+        engine=PANDAS_CSV_ENGINE, 
+        dtype_backend=PANDAS_CSV_DTYPE_BACKEND
+    )
 
     TEAMS = TEAMS_DF[TEAMS_DF['LAST'] == 2024].dropna()
     TEAMS.set_index('TEAM', inplace=True)
@@ -282,8 +291,13 @@ def _(mo):
 
 
 @app.cell
-def _(RETROSHEET_DIR, pd):
-    PLAYERS_DF = pd.read_csv(f"{RETROSHEET_DIR}/reference/biofile.csv.zip")
+def _(PANDAS_CSV_DTYPE_BACKEND, PANDAS_CSV_ENGINE, RETROSHEET_DIR, pd):
+    PLAYERS_DF = pd.read_csv(
+        f"{RETROSHEET_DIR}/reference/biofile.csv.zip", 
+        engine=PANDAS_CSV_ENGINE, 
+        dtype_backend=PANDAS_CSV_DTYPE_BACKEND
+    )
+
     PLAYERS_DF.set_index('PLAYERID', inplace=True)
 
     def get_player_name(player_id):
@@ -365,7 +379,16 @@ def _():
 
 
 @app.cell
-def _(END_YEAR, GAMELOG_COLUMNS, RETROSHEET_DIR, START_YEAR, mo, pd):
+def _(
+    END_YEAR,
+    GAMELOG_COLUMNS,
+    PANDAS_CSV_DTYPE_BACKEND,
+    PANDAS_CSV_ENGINE,
+    RETROSHEET_DIR,
+    START_YEAR,
+    mo,
+    pd,
+):
     all_seasons = []
 
     for season_year in mo.status.progress_bar(
@@ -377,7 +400,9 @@ def _(END_YEAR, GAMELOG_COLUMNS, RETROSHEET_DIR, START_YEAR, mo, pd):
         _season = pd.read_csv(
             f"{RETROSHEET_DIR}/seasons/{season_year}/GL{season_year}.TXT.zip",
             header=None,
-            names=GAMELOG_COLUMNS
+            names=GAMELOG_COLUMNS,
+            engine=PANDAS_CSV_ENGINE,
+            dtype_backend=PANDAS_CSV_DTYPE_BACKEND
         )
         _season['season'] = season_year
         all_seasons.append(_season)
@@ -868,7 +893,15 @@ def _(mo):
 
 
 @app.cell
-def _(DAILY_FILES, END_YEAR, START_YEAR, mo, pd):
+def _(
+    DAILY_FILES,
+    END_YEAR,
+    PANDAS_CSV_DTYPE_BACKEND,
+    PANDAS_CSV_ENGINE,
+    START_YEAR,
+    mo,
+    pd,
+):
     def get_pitching_dataframe():
         _dfs = []
 
@@ -880,7 +913,11 @@ def _(DAILY_FILES, END_YEAR, START_YEAR, mo, pd):
             show_eta=True,
             show_rate=True
         ):
-            _season = pd.read_csv(f"{DAILY_FILES}/playing-{year}.csv.zip")
+            _season = pd.read_csv(
+                f"{DAILY_FILES}/playing-{year}.csv.zip", 
+                engine=PANDAS_CSV_ENGINE, 
+                dtype_backend=PANDAS_CSV_DTYPE_BACKEND
+            )
             _season['season'] = year
             _season['game.datetime'] = pd.to_datetime(_season['game.date'], format='%Y-%m-%d')
 
@@ -894,7 +931,7 @@ def _(DAILY_FILES, END_YEAR, START_YEAR, mo, pd):
                 col for col in _season.columns
                 if not (col.startswith('B_') or col.startswith('F_'))
             ]
-        
+
             year_pitching_data = _season.loc[
                 is_event_data & is_regular_season & has_faced_batters & is_starting_pitcher,
                 columns_to_keep
@@ -904,7 +941,7 @@ def _(DAILY_FILES, END_YEAR, START_YEAR, mo, pd):
 
         return pd.concat(_dfs, axis=0, ignore_index=True)
 
-    PITCHING_DF = get_pitching_dataframe().sort_values(by=['person.key', 'game.datetime'])
+    PITCHING_DF = get_pitching_dataframe().sort_values(by=['person.key', 'game.datetime'])  
     return (PITCHING_DF,)
 
 
