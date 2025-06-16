@@ -1870,7 +1870,6 @@ def _(
         ], justify="start"),
         mo.ui.plotly(_fig)
     ])
-
     return
 
 
@@ -1887,7 +1886,7 @@ def _(mo):
 
 
 @app.cell
-def _(PIPELINE, PLAYERS_DF, pd, predict_game):
+def _(PIPELINE, PLAYERS_DF, mo, pd, predict_game):
     def create_pitching_prediction_dataframe(home_team, away_team, player_data):
         home_pitchers_list = player_data[home_team]
         away_pitchers_list = player_data[away_team]
@@ -1895,7 +1894,12 @@ def _(PIPELINE, PLAYERS_DF, pd, predict_game):
         # Run predictions and store results
         results = []
 
-        for h_pitcher in home_pitchers_list:
+        for h_pitcher in mo.status.progress_bar(
+            home_pitchers_list,
+            title="Comparing Pitchers",
+            show_eta=True,
+            show_rate=True
+        ):
             row = {}
             for a_pitcher in away_pitchers_list:
                 away_pitcher_name = PLAYERS_DF.loc[a_pitcher]['LAST']
@@ -1989,36 +1993,34 @@ def _(
     mo,
     px,
 ):
-    with mo.status.spinner(title="Loading Pitching Matchups", remove_on_exit=True) as _spinner:
-        _team_data = {}
-        _team_data[all_pitchers_home_team_dropdown.value] = all_pitchers_home_pitchers_list.keys()
-        _team_data[all_pitchers_away_team_dropdown.value] = all_pitchers_away_pitchers_list.keys()
+    _team_data = {}
+    _team_data[all_pitchers_home_team_dropdown.value] = all_pitchers_home_pitchers_list.keys()
+    _team_data[all_pitchers_away_team_dropdown.value] = all_pitchers_away_pitchers_list.keys()
 
-        _home_team = all_pitchers_home_team_dropdown.value
-        _away_team = all_pitchers_away_team_dropdown.value
+    _home_team = all_pitchers_home_team_dropdown.value
+    _away_team = all_pitchers_away_team_dropdown.value
 
-        _df = create_pitching_prediction_dataframe(_home_team, _away_team, _team_data)
-        _df_reset = _df.reset_index().melt(id_vars='Home Pitcher', var_name='Away Pitcher', value_name='Win %')
+    _df = create_pitching_prediction_dataframe(_home_team, _away_team, _team_data)
+    _df_reset = _df.reset_index().melt(id_vars='Home Pitcher', var_name='Away Pitcher', value_name='Win %')
 
-        _figure = px.density_heatmap(
-            _df_reset,
-            x='Away Pitcher',
-            y='Home Pitcher',
-            z='Win %',
-            color_continuous_scale='RdBu_r',
-            range_color=[0, 100],
-            text_auto='.1f'
-        )
+    _figure = px.density_heatmap(
+        _df_reset,
+        x='Away Pitcher',
+        y='Home Pitcher',
+        z='Win %',
+        color_continuous_scale='RdBu_r',
+        range_color=[0, 100],
+        text_auto='.1f'
+    )
 
-        _figure.update_layout(
-            title=f"{TEAMS_LIST[_away_team]} at {TEAMS_LIST[_home_team]} Win Probability by Pitcher",
-            xaxis_title=f"{TEAMS_LIST[_away_team]}",
-            yaxis_title=f"{TEAMS_LIST[_home_team]}",
-            coloraxis_colorbar=dict(title="Win %"),
-            yaxis=dict(autorange='reversed'),
-            height=800
-        )
-
+    _figure.update_layout(
+        title=f"{TEAMS_LIST[_away_team]} at {TEAMS_LIST[_home_team]} Win Probability by Pitcher",
+        xaxis_title=f"{TEAMS_LIST[_away_team]}",
+        yaxis_title=f"{TEAMS_LIST[_home_team]}",
+        coloraxis_colorbar=dict(title="Win %"),
+        yaxis=dict(autorange='reversed'),
+        height=800
+    )
 
     mo.vstack([
         mo.hstack([
