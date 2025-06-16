@@ -59,9 +59,9 @@ def _(mo):
 
 @app.cell
 def _():
-    import io
-
-    import altair as alt
+    import plotly.figure_factory as ff
+    from sklearn.metrics import precision_recall_curve, average_precision_score
+    from sklearn.calibration import calibration_curve
     import marimo as mo
     import matplotlib.pyplot as plt
     import numpy as np
@@ -80,17 +80,25 @@ def _():
     from sklearn.model_selection import train_test_split
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
+    from sklearn.metrics import roc_curve, roc_auc_score
+
     return (
         LogisticRegression,
         StandardScaler,
+        average_precision_score,
+        calibration_curve,
         classification_report,
         confusion_matrix,
+        ff,
         go,
         make_pipeline,
         mo,
         np,
         pd,
+        precision_recall_curve,
         px,
+        roc_auc_score,
+        roc_curve,
         train_test_split,
     )
 
@@ -1325,9 +1333,7 @@ def _(MODEL_METRICS, classification_report, pd, predictions, y_test):
 
 
 @app.cell
-def _(MODEL_METRICS, confusion_matrix, mo, predictions, y_test):
-    import plotly.figure_factory as ff
-
+def _(MODEL_METRICS, confusion_matrix, ff, mo, predictions, y_test):
     _matrix = confusion_matrix(y_test, predictions)
     _labels = ['Loss', 'Win']
 
@@ -1362,9 +1368,16 @@ def _(MODEL_METRICS, confusion_matrix, mo, predictions, y_test):
 
 
 @app.cell
-def _(MODEL_METRICS, PIPELINE, go, mo, x_test, y_test):
-    from sklearn.metrics import roc_curve, roc_auc_score
-
+def _(
+    MODEL_METRICS,
+    PIPELINE,
+    go,
+    mo,
+    roc_auc_score,
+    roc_curve,
+    x_test,
+    y_test,
+):
     _probs = PIPELINE.predict_proba(x_test)[:, 1]
 
     _fpr, _tpr, _ = roc_curve(y_test, _probs)
@@ -1402,9 +1415,16 @@ def _(MODEL_METRICS, PIPELINE, go, mo, x_test, y_test):
 
 
 @app.cell
-def _(MODEL_METRICS, PIPELINE, go, mo, x_test, y_test):
-    from sklearn.metrics import precision_recall_curve, average_precision_score
-
+def _(
+    MODEL_METRICS,
+    PIPELINE,
+    average_precision_score,
+    go,
+    mo,
+    precision_recall_curve,
+    x_test,
+    y_test,
+):
     _probs = PIPELINE.predict_proba(x_test)[:, 1]
     _precision, _recall, _ = precision_recall_curve(y_test, _probs)
     _ap = average_precision_score(y_test, _probs)
@@ -1422,9 +1442,7 @@ def _(MODEL_METRICS, PIPELINE, go, mo, x_test, y_test):
 
 
 @app.cell
-def _(MODEL_METRICS, PIPELINE, go, mo, x_test, y_test):
-    from sklearn.calibration import calibration_curve
-
+def _(MODEL_METRICS, PIPELINE, calibration_curve, go, mo, x_test, y_test):
     _probs = PIPELINE.predict_proba(x_test)[:, 1]
     _fraction, _mean = calibration_curve(y_test, _probs, n_bins=10)
 

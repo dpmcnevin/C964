@@ -1,0 +1,12 @@
+IPython
+ipywidgets
+marimo
+matplotlib
+notebook
+numpy
+pandas
+plotly
+ruff
+scikit-learn
+seaborn
+tabulate

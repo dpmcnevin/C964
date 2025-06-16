@@ -17,22 +17,6 @@ users:
     sudo:
       - ALL=(ALL) NOPASSWD:ALL
 
-write_files:
-  - path: /home/jupyter/.jupyter/jupyter_server_config.json
-    owner: jupyter:jupyter
-    permissions: '600'
-    content: |
-      {
-        "IdentityProvider": {
-          "hashed_password": "argon2:$argon2id$v=19$m=10240,t=10,p=8$2O9MozIZ4xFTKvO2gkAUpA$Rxn09eIkNc61Kw6rtPO2RdxqPUgn8ReCZ2TrSFlLL0Y"
-        }
-      }
-      {
-        "IdentityProvider": {
-          "hashed_password": "argon2:$argon2id$v=19$m=10240,t=10,p=8$aATrdI1FrIsc9ko52lShTQ$ztH6ZqR+zY3DVFN99b+cbowKAv0eZ4ZeL3MPk1djI5U"
-        }
-      }
-
 runcmd:
   # Make sure jupyter owns its home directory
   - chown -R jupyter:jupyter /home/jupyter
@@ -40,12 +24,12 @@ runcmd:
   # Create Python virtual environment
   - runuser -u jupyter -- bash -c "python3 -m venv /home/jupyter/venv"
 
-  # Upgrade pip and install required Python packages
-  - runuser -u jupyter -- bash -c "/home/jupyter/venv/bin/pip install --upgrade pip"
-  - runuser -u jupyter -- bash -c "/home/jupyter/venv/bin/pip install notebook ipywidgets matplotlib pandas numpy scikit-learn plotly seaborn"
-
   # Clone your Git repository
   - runuser -u jupyter -- bash -c "git clone https://github.com/dpmcnevin/C964 /home/jupyter/C964"
+  -
+  # Upgrade pip and install required Python packages
+  - runuser -u jupyter -- bash -c "/home/jupyter/venv/bin/pip install --upgrade pip"
+  - runuser -u jupyter -- bash -c "/home/jupyter/venv/bin/pip install -r /home/jupyter/C964/requirements.txt"
 
   # Start Jupyter Server
-  - runuser -u jupyter -- bash -c "/home/jupyter/venv/bin/jupyter notebook --config=/home/jupyter/.jupyter/jupyter_server_config.json --notebook-dir=/home/jupyter/C964 --ip=0.0.0.0 --port=8888 --no-browser &"
+  - runuser -u jupyter -- bash -c "/home/jupyter/venv/bin/marimo run  /home/jupyter/C964/C964_Daniel_McNevin.py --notebook-dir=/home/jupyter/C964 --host=0.0.0.0 --port=8888 --headless --no-token &"
