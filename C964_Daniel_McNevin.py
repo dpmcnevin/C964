@@ -755,7 +755,7 @@ def _(mo):
 
 @app.cell
 def _(ALL_BATTING_STATS, TEAMS_LIST_REVERSED, mo):
-    teams_multi_dropdown = mo.ui.multiselect(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[:1], max_selections=5)
+    teams_multi_dropdown = mo.ui.multiselect(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[:5], max_selections=5)
     teams_batting_stats_dropdown = mo.ui.dropdown(options=ALL_BATTING_STATS, value=ALL_BATTING_STATS[-1], searchable=True)
     return teams_batting_stats_dropdown, teams_multi_dropdown
 
