@@ -312,7 +312,7 @@ def _(END_YEAR, RETROSHEET_DIR, START_YEAR, mo, pd):
 
         for season_year in mo.status.progress_bar(
             range(start_year, end_year),
-            title="Loading Seasons",
+            title="Batting Seasons",
             show_eta=True,
             show_rate=True
         ):
@@ -632,19 +632,17 @@ def _(mo):
 
 
 @app.cell
-def _(ALL_SEASONS_DF, TEAMS, team_games):
+def _(ALL_SEASONS_DF, TEAMS, mo, team_games):
     def extract_team_dictionary(dataframe):
         all_teams = {}
 
-        print("Loading Teams ", end="")
-
         for team in TEAMS.index:
-            print(f"{team} ", end="")
             all_teams[team] = team_games(dataframe, team)
 
         return all_teams
 
-    TEAM_DATA = extract_team_dictionary(ALL_SEASONS_DF)
+    with mo.status.spinner(title="Extracting Team Dictionaries", remove_on_exit=True) as _spinner:
+        TEAM_DATA = extract_team_dictionary(ALL_SEASONS_DF)
     return (TEAM_DATA,)
 
 
@@ -876,7 +874,7 @@ def _(DAILY_FILES, END_YEAR, START_YEAR, mo, pd):
     
         for year in mo.status.progress_bar(
             range(START_YEAR, END_YEAR),
-            title="Loading Pitching Seasons",
+            title="Pitching Seasons",
             show_eta=True,
             show_rate=True
         ):
@@ -1989,34 +1987,35 @@ def _(
     mo,
     px,
 ):
-    _team_data = {}
-    _team_data[all_pitchers_home_team_dropdown.value] = all_pitchers_home_pitchers_list.keys()
-    _team_data[all_pitchers_away_team_dropdown.value] = all_pitchers_away_pitchers_list.keys()
-
-    _home_team = all_pitchers_home_team_dropdown.value
-    _away_team = all_pitchers_away_team_dropdown.value
-
-    _df = create_pitching_prediction_dataframe(_home_team, _away_team, _team_data)
-    _df_reset = _df.reset_index().melt(id_vars='Home Pitcher', var_name='Away Pitcher', value_name='Win %')
-
-    _figure = px.density_heatmap(
-        _df_reset,
-        x='Away Pitcher',
-        y='Home Pitcher',
-        z='Win %',
-        color_continuous_scale='RdBu_r',
-        range_color=[0, 100],
-        text_auto='.1f'
-    )
-
-    _figure.update_layout(
-        title=f"{TEAMS_LIST[_away_team]} at {TEAMS_LIST[_home_team]} Win Probability by Pitcher",
-        xaxis_title=f"{TEAMS_LIST[_away_team]}",
-        yaxis_title=f"{TEAMS_LIST[_home_team]}",
-        coloraxis_colorbar=dict(title="Win %"),
-        yaxis=dict(autorange='reversed'),
-        height=800
-    )
+    with mo.status.spinner(title="Loading Pitching Matchups", remove_on_exit=True) as _spinner:
+        _team_data = {}
+        _team_data[all_pitchers_home_team_dropdown.value] = all_pitchers_home_pitchers_list.keys()
+        _team_data[all_pitchers_away_team_dropdown.value] = all_pitchers_away_pitchers_list.keys()
+    
+        _home_team = all_pitchers_home_team_dropdown.value
+        _away_team = all_pitchers_away_team_dropdown.value
+    
+        _df = create_pitching_prediction_dataframe(_home_team, _away_team, _team_data)
+        _df_reset = _df.reset_index().melt(id_vars='Home Pitcher', var_name='Away Pitcher', value_name='Win %')
+    
+        _figure = px.density_heatmap(
+            _df_reset,
+            x='Away Pitcher',
+            y='Home Pitcher',
+            z='Win %',
+            color_continuous_scale='RdBu_r',
+            range_color=[0, 100],
+            text_auto='.1f'
+        )
+    
+        _figure.update_layout(
+            title=f"{TEAMS_LIST[_away_team]} at {TEAMS_LIST[_home_team]} Win Probability by Pitcher",
+            xaxis_title=f"{TEAMS_LIST[_away_team]}",
+            yaxis_title=f"{TEAMS_LIST[_home_team]}",
+            coloraxis_colorbar=dict(title="Win %"),
+            yaxis=dict(autorange='reversed'),
+            height=800
+        )
 
 
     mo.vstack([
