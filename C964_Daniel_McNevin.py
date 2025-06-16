@@ -39,6 +39,24 @@ def _(mo):
     return
 
 
+@app.cell
+def _(mo):
+    mo.md(r"""<div class="subheader_cell">Batting Stats Status</div>""")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""<div class="subheader_cell">Pitching Stats Status</div>""")
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""<div class="subheader_cell">Model Training Status</div>""")
+    return
+
+
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""# Global Setup""")
@@ -59,6 +77,8 @@ def _(mo):
 
 @app.cell
 def _():
+    import time
+
     import plotly.figure_factory as ff
     from sklearn.metrics import precision_recall_curve, average_precision_score
     from sklearn.calibration import calibration_curve
@@ -99,6 +119,7 @@ def _():
         px,
         roc_auc_score,
         roc_curve,
+        time,
         train_test_split,
     )
 
@@ -285,14 +306,16 @@ def _(mo):
 
 
 @app.cell
-def _(END_YEAR, RETROSHEET_DIR, START_YEAR, pd):
+def _(END_YEAR, RETROSHEET_DIR, START_YEAR, mo, pd):
     def read_all_seasons(start_year, end_year):
         all_seasons = []
 
-        print("Reading Seasons ", end="")
-
-        for season_year in range(start_year, end_year):
-            print(f"{season_year} ", end="")
+        for season_year in mo.status.progress_bar(
+            range(start_year, end_year),
+            title="Loading Seasons",
+            show_eta=True,
+            show_rate=True
+        ):
             _season = pd.read_csv(f"{RETROSHEET_DIR}/seasons/{season_year}/GL{season_year}.TXT.zip", header=None)
             _season['season'] = season_year
             all_seasons.append(_season)
@@ -845,14 +868,18 @@ def _(mo):
 
 
 @app.cell
-def _(DAILY_FILES, END_YEAR, START_YEAR, pd):
+def _(DAILY_FILES, END_YEAR, START_YEAR, mo, pd):
     def get_pitching_dataframe():
         _dfs = []
 
-        print("Getting Pitching Data: ", end="")
-        ## Read data from 1980-2024
-        for year in range(START_YEAR, END_YEAR):
-            print(f"{year} ", end="")
+        mo.md("Pitching Season Status")
+    
+        for year in mo.status.progress_bar(
+            range(START_YEAR, END_YEAR),
+            title="Loading Pitching Seasons",
+            show_eta=True,
+            show_rate=True
+        ):
             _season = pd.read_csv(f"{DAILY_FILES}/playing-{year}.csv.zip")
             _season['season'] = year
             _season['game.datetime'] = pd.to_datetime(_season['game.date'], format='%Y-%m-%d')
@@ -1285,8 +1312,13 @@ def _(mo):
 
 
 @app.cell
-def _(PIPELINE, x_train, y_train):
-    PIPELINE.fit(x_train, y_train)
+def _(PIPELINE, mo, time, x_train, y_train):
+    start = time.perf_counter()
+    with mo.status.spinner(title="Training Model", remove_on_exit=True) as _spinner:
+        PIPELINE.fit(x_train, y_train)
+
+    elapsed = time.perf_counter() - start
+    mo.md(f"Model Training Complete in {elapsed:.2f} seconds")
     return
 
 
@@ -1965,8 +1997,6 @@ def _(
     _away_team = all_pitchers_away_team_dropdown.value
 
     _df = create_pitching_prediction_dataframe(_home_team, _away_team, _team_data)
-
-    # Plotly
     _df_reset = _df.reset_index().melt(id_vars='Home Pitcher', var_name='Away Pitcher', value_name='Win %')
 
     _figure = px.density_heatmap(
