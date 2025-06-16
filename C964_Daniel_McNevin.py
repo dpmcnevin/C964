@@ -3,6 +3,7 @@ import marimo
 __generated_with = "0.13.15"
 app = marimo.App(
     width="medium",
+    app_title="Daniel McNevin - C964 - Task 2",
     layout_file="layouts/C964_Daniel_McNevin.grid.json",
 )
 
@@ -90,7 +91,6 @@ def _():
     import plotly.graph_objects as go
     import seaborn as sns
     import tabulate
-    from IPython.display import display, clear_output
     from sklearn.calibration import CalibrationDisplay
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import PrecisionRecallDisplay
@@ -101,7 +101,6 @@ def _():
     from sklearn.pipeline import make_pipeline
     from sklearn.preprocessing import StandardScaler
     from sklearn.metrics import roc_curve, roc_auc_score
-
     return (
         LogisticRegression,
         StandardScaler,
@@ -306,33 +305,6 @@ def _(mo):
 
 
 @app.cell
-def _(END_YEAR, RETROSHEET_DIR, START_YEAR, mo, pd):
-    def read_all_seasons(start_year, end_year):
-        all_seasons = []
-
-        for season_year in mo.status.progress_bar(
-            range(start_year, end_year),
-            title="Batting Seasons",
-            show_eta=True,
-            show_rate=True
-        ):
-            _season = pd.read_csv(f"{RETROSHEET_DIR}/seasons/{season_year}/GL{season_year}.TXT.zip", header=None)
-            _season['season'] = season_year
-            all_seasons.append(_season)
-
-        return pd.concat(all_seasons, axis=0, ignore_index=True)
-
-    ALL_SEASONS_DF = read_all_seasons(START_YEAR, END_YEAR)
-    return (ALL_SEASONS_DF,)
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""#### Header Columns""")
-    return
-
-
-@app.cell
 def _():
     GAMELOG_COLUMNS = [
         'date', 'game_num', 'day_of_week', 'visiting_team',
@@ -390,6 +362,34 @@ def _():
         'misc', 'acquisition_info'
     ]
     return (GAMELOG_COLUMNS,)
+
+
+@app.cell
+def _(END_YEAR, GAMELOG_COLUMNS, RETROSHEET_DIR, START_YEAR, mo, pd):
+    all_seasons = []
+
+    for season_year in mo.status.progress_bar(
+        range(START_YEAR, END_YEAR),
+        title="Batting Seasons",
+        show_eta=True,
+        show_rate=True
+    ):
+        _season = pd.read_csv(
+            f"{RETROSHEET_DIR}/seasons/{season_year}/GL{season_year}.TXT.zip",
+            header=None,
+            names=GAMELOG_COLUMNS
+        )
+        _season['season'] = season_year
+        all_seasons.append(_season)
+
+    ALL_SEASONS_DF = pd.concat(all_seasons, axis=0, ignore_index=True)
+    return (ALL_SEASONS_DF,)
+
+
+@app.cell
+def _(mo):
+    mo.md(r"""#### Header Columns""")
+    return
 
 
 @app.cell
@@ -661,12 +661,10 @@ def _(mo):
 
 
 @app.cell
-def _(BATTING_PERIODS, BATTING_STATS, TEAMS, TEAM_DATA, pd):
+def _(BATTING_PERIODS, BATTING_STATS, TEAMS, TEAM_DATA, mo, pd):
     def calculate_team_batting_rolling_averages(team, team_df):
-
         team_df = team_df.copy()
 
-        print(f"{team} ", end="")
         new_cols = {}
 
         for stat in BATTING_STATS:
@@ -680,8 +678,12 @@ def _(BATTING_PERIODS, BATTING_STATS, TEAMS, TEAM_DATA, pd):
         new_cols_df = pd.DataFrame(new_cols, index=team_df.index)
         return pd.concat([team_df, new_cols_df], axis=1).drop_duplicates()
 
-    print("Processing Team: ", end="")
-    for team in TEAMS.index:
+    for team in mo.status.progress_bar(
+            TEAMS.index,
+            title="Batting Rolling Average Stats",
+            show_eta=True,
+            show_rate=True
+        ):
         TEAM_DATA[team] = calculate_team_batting_rolling_averages(team, TEAM_DATA[team])
     return
 
@@ -871,7 +873,7 @@ def _(DAILY_FILES, END_YEAR, START_YEAR, mo, pd):
         _dfs = []
 
         mo.md("Pitching Season Status")
-    
+
         for year in mo.status.progress_bar(
             range(START_YEAR, END_YEAR),
             title="Pitching Seasons",
@@ -1991,13 +1993,13 @@ def _(
         _team_data = {}
         _team_data[all_pitchers_home_team_dropdown.value] = all_pitchers_home_pitchers_list.keys()
         _team_data[all_pitchers_away_team_dropdown.value] = all_pitchers_away_pitchers_list.keys()
-    
+
         _home_team = all_pitchers_home_team_dropdown.value
         _away_team = all_pitchers_away_team_dropdown.value
-    
+
         _df = create_pitching_prediction_dataframe(_home_team, _away_team, _team_data)
         _df_reset = _df.reset_index().melt(id_vars='Home Pitcher', var_name='Away Pitcher', value_name='Win %')
-    
+
         _figure = px.density_heatmap(
             _df_reset,
             x='Away Pitcher',
@@ -2007,7 +2009,7 @@ def _(
             range_color=[0, 100],
             text_auto='.1f'
         )
-    
+
         _figure.update_layout(
             title=f"{TEAMS_LIST[_away_team]} at {TEAMS_LIST[_home_team]} Win Probability by Pitcher",
             xaxis_title=f"{TEAMS_LIST[_away_team]}",
