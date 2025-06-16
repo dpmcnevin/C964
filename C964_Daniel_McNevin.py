@@ -7,7 +7,7 @@ app = marimo.App(
 )
 
 
-@app.cell(hide_code=True)
+@app.cell
 def _(mo):
     mo.md(
         r"""
@@ -22,6 +22,18 @@ def _(mo):
      charge from and is copyrighted by Retrosheet.  Interested
      parties may contact Retrosheet at "www.retrosheet.org".
     ```
+
+    <style type="text/css">
+        .header_cell {
+            background-color: #efe;
+            border-bottom: 1px solid black;
+        }
+
+        .subheader_cell {
+            background-color: #eff;
+            border-bottom: 1px solid black;
+        }
+    </style>
     """
     )
     return
@@ -133,12 +145,6 @@ def _(mo):
 
     BATTING_STATS_DROPDOWN = mo.ui.dropdown(options=ALL_BATTING_STATS, value=ALL_BATTING_STATS[0], searchable=True)
     return ALL_BATTING_STATS, BATTING_PERIODS, BATTING_STATS
-
-
-@app.cell
-def _(mo):
-    mo.md(r"""#### Pitching Stats""")
-    return
 
 
 @app.cell(hide_code=True)
@@ -479,7 +485,7 @@ def _(ALL_SEASONS_DF, np):
 def _(mo):
     mo.md(
         r"""
-    ## Batting Stats
+    <div class="header_cell"><h2>Batting Stats</h2></div>
 
     $\text{Batting Average (BA)} = \frac{\text{Hits}}{\text{At Bats}}$
 
@@ -670,6 +676,12 @@ def _(TEAM_DATA, pd):
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""<div class="subheader_cell">Graph of Team Batting Stats Aggregated by Season</div>""")
+    return
+
+
+@app.cell
 def _(ALL_BATTING_STATS, TEAMS_LIST_REVERSED, mo):
     season_teams_dropdown = mo.ui.dropdown(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[0], searchable=True)
     season_batting_stats_dropdown = mo.ui.dropdown(options=ALL_BATTING_STATS, value=ALL_BATTING_STATS[-1], searchable=True)
@@ -705,6 +717,12 @@ def _(
 
 
 @app.cell
+def _(mo):
+    mo.md(r"""<div class="subheader_cell">Graph of Team Batting Stats with Multiple Teams</div>""")
+    return
+
+
+@app.cell
 def _(ALL_BATTING_STATS, TEAMS_LIST_REVERSED, mo):
     teams_multi_dropdown = mo.ui.multiselect(options=TEAMS_LIST_REVERSED, value=list(TEAMS_LIST_REVERSED.keys())[:1], max_selections=5)
     teams_batting_stats_dropdown = mo.ui.dropdown(options=ALL_BATTING_STATS, value=ALL_BATTING_STATS[-1], searchable=True)
@@ -719,6 +737,7 @@ def _(mo):
 
 @app.cell
 def _(
+    TEAMS_LIST,
     TEAM_DATA_DF,
     mo,
     px,
@@ -734,6 +753,10 @@ def _(
         markers=False,
         title=f"Teams {season_batting_stats_dropdown.value}"
     )
+
+    for trace in _fig.data:
+        team_code = trace.name
+        trace.name = TEAMS_LIST[team_code]
 
     mo.vstack([
         mo.hstack([
@@ -803,7 +826,7 @@ def _(ALL_SEASONS_DF, BATTING_PERIODS, BATTING_STATS, TEAMS, TEAM_DATA):
 def _(mo):
     mo.md(
         r"""
-    ## Pitching Statistics
+    ## Pitching Stats
 
     Pitching statistics are stored in a separte daily event file
 
@@ -848,7 +871,7 @@ def _(DAILY_FILES, END_YEAR, START_YEAR, pd):
 def _(mo):
     mo.md(
         r"""
-    ### Calculate Per-Game Pitching Stats
+    <div class="header_cell"><h3>Pitching Stats</h3></div>
 
 
     $\text{Earned Run Average (ERA)} = \left( \frac{\text{Earned Runs}}{\text{Innings Pitched}} \right) \times 9$
@@ -901,7 +924,7 @@ def _(mo):
 
 @app.cell
 def _(mo):
-    mo.md(r"""#### Compare Pitching Statistics for Selected Pitchers""")
+    mo.md(r"""<div class="subheader_cell">Compare Pitching Statistics for Selected Pitchers</div>""")
     return
 
 
@@ -972,7 +995,7 @@ def _(
 
 @app.cell
 def _(mo):
-    mo.md(r"""#### Pitching Statistics for All Pitchers on a Team""")
+    mo.md(r"""<div class="subheader_cell">Pitching Statistics for All Pitchers on a Team</div>""")
     return
 
 
@@ -1156,7 +1179,13 @@ def _(MERGED_DF_WITH_PITCHING, pivoted_stats):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Modeling""")
+    mo.md(
+        r"""
+    <div class="header_cell">
+        <h1>Modeling</h1>
+    </div>
+    """
+    )
     return
 
 
@@ -1563,7 +1592,13 @@ def _(PITCHING_DF):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.md(r"""# Predictions""")
+    mo.md(
+        r"""
+    <div class="header_cell">
+        <h1>Predictions</h1>
+    </div>
+    """
+    )
     return
 
 
@@ -1649,7 +1684,13 @@ def _(create_game_series, get_last_pitching_stats, get_last_team_stats, pd):
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Predict the Outcome of a Game""")
+    mo.md(
+        r"""
+    <div class="subheader_cell">Predict the Outcome of a Game</div>
+
+    Given a home and away team and their respective starting pitchers, generate a prediction of which team is more likely to win
+    """
+    )
     return
 
 
@@ -1785,7 +1826,13 @@ def _(
 
 @app.cell
 def _(mo):
-    mo.md(r"""### Preidct the Outcome of a Game for All Starting Pitchers""")
+    mo.md(
+        r"""
+    <div class="subheader_cell">Preidct the Outcome of a Game for All Starting Pitchers</div>
+
+    Given a home and away team, show the the predicted win possibility for the home team for every starting pitching matchup
+    """
+    )
     return
 
 
