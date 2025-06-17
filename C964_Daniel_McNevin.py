@@ -1535,17 +1535,26 @@ def _(MODEL_METRICS, PIPELINE, calibration_curve, go, mo, x_test, y_test):
 
 
 @app.cell
-def _(MODEL_METRICS, PIPELINE, go, mo, x_test):
+def _(MODEL_METRICS, PIPELINE, go, mo, np, x_test):
     _y_proba = PIPELINE.predict_proba(x_test)[:, 1]
 
+    _max_value = max(np.histogram(_y_proba, bins=50)[0])
+
     _fig = go.Figure(data=[
-        go.Histogram(x=_y_proba, nbinsx=50)
+        go.Histogram(x=_y_proba, nbinsx=50, name="Probability"),
+        go.Scatter(
+            x=[0.5, 0.5], y=[0, _max_value + 500],
+            mode='lines',
+            name='Home Win',
+            line=dict(color='red', dash='dot')
+        )
     ])
 
     _fig.update_layout(
         title='Histogram of Predicted Probabilities',
         xaxis_title='Predicted Probability for Win',
-        yaxis_title='Frequency'
+        yaxis_title='Frequency',
+        showlegend=False
     )
 
     MODEL_METRICS["Predictions"] = mo.vstack([
