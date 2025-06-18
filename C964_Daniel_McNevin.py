@@ -1564,6 +1564,29 @@ def _(MODEL_METRICS, PIPELINE, go, mo, np, x_test):
 
 
 @app.cell
+def _(MODEL_METRICS, PIPELINE, mo, pd, px, x_test):
+    _df = pd.DataFrame({"Value": PIPELINE.predict_proba(x_test)[:, 1]})
+
+
+    _fig = px.box(
+        _df,
+        x="Value",         # Use the name of your single column for the x-axis
+        orientation='h',       # Horizontal orientation
+        points=False,          # Show all data points (fliers)
+    )
+
+    _fig.update_traces(
+        boxmean=True,          # Show the mean line
+        marker_color='lightblue' # Set the box color
+    )
+
+    MODEL_METRICS["Boxplot"] = mo.vstack([
+        mo.ui.plotly(_fig)
+    ])
+    return
+
+
+@app.cell
 def _(LOGMODEL, MODEL_METRICS, go, mo, pd, x_train):
     _coefficients = pd.Series(LOGMODEL.coef_[0], index=x_train.columns)
     _coeff_abs_sorted = _coefficients.abs().sort_values(ascending=True)  # ascending=True for horizontal bar from bottom
@@ -1582,7 +1605,7 @@ def _(LOGMODEL, MODEL_METRICS, go, mo, pd, x_train):
         margin=dict(l=120, r=40, t=50, b=50)
     )
 
-    MODEL_METRICS["Feature Impact"] = mo.vstack([
+    MODEL_METRICS["Impact"] = mo.vstack([
         mo.ui.plotly(_fig)
     ])
     return
@@ -1608,7 +1631,7 @@ def _(MODEL_METRICS, TRAINER_DF, TRAINING_FIELDS, go, mo):
         margin=dict(l=140, r=40, t=50, b=50)
     )
 
-    MODEL_METRICS["Feature Correlation"] = mo.vstack([
+    MODEL_METRICS["Correlation"] = mo.vstack([
         mo.ui.plotly(_fig)
     ])
     return
@@ -1658,7 +1681,7 @@ def _(MERGED_DF_WITH_PITCHING_FINAL, MODEL_METRICS, go, mo):
         bargap=0.2
     )
 
-    MODEL_METRICS["Prediction Class"] = mo.vstack([
+    MODEL_METRICS["Class"] = mo.vstack([
         mo.ui.plotly(_fig)
     ])
     return
